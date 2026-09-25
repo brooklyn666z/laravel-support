@@ -17,6 +17,7 @@ use Fillindev\Support\Events\TicketReopened;
 use Fillindev\Support\Events\TicketStatusChanged;
 use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketCategory;
+use Fillindev\Support\Models\TicketMessage;
 use Fillindev\Support\SupportIds;
 use Fillindev\Support\TicketNumberGenerator;
 use Fillindev\Support\TicketWorkflow;
@@ -157,6 +158,32 @@ class TicketService
 
             return $ticket->refresh();
         });
+    }
+
+    /**
+     * Запоминает время отправки последнего сообщения, которое увидел клиент или оператор.
+     */
+    public function markRead(Ticket $ticket, bool $byAgent): Ticket
+    {
+        $latest = $ticket->messages()
+            ->when(! $byAgent, fn ($query) => $query->where('is_internal', false))
+            ->latest('id')
+            ->first();
+
+        if (! $latest instanceof TicketMessage) {
+            return $ticket;
+        }
+
+        $column = $byAgent ? 'agent_last_read_at' : 'requester_last_read_at';
+        $current = $ticket->{$column};
+
+        if ($current !== null && $current->equalTo($latest->created_at)) {
+            return $ticket;
+        }
+
+        $ticket->update([$column => $latest->created_at]);
+
+        return $ticket->refresh();
     }
 
     public function changePriority(Ticket $ticket, TicketPriority $priority, SupportableUser $actor): Ticket

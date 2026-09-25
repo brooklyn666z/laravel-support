@@ -24,6 +24,8 @@ class Ticket extends Model
         'status',
         'priority',
         'last_replied_at',
+        'requester_last_read_at',
+        'agent_last_read_at',
         'resolved_at',
         'closed_at',
     ];
@@ -46,6 +48,8 @@ class Ticket extends Model
             'status' => TicketStatus::class,
             'priority' => TicketPriority::class,
             'last_replied_at' => 'datetime',
+            'requester_last_read_at' => 'datetime',
+            'agent_last_read_at' => 'datetime',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
