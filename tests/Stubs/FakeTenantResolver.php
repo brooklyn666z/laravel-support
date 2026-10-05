@@ -9,6 +9,8 @@ use Fillindev\Support\Contracts\SupportTenantResolver;
 
 final class FakeTenantResolver implements SupportTenantResolver
 {
+    public static ?SupportTenant $current = null;
+
     public function resolve(int|string|null $id): ?SupportTenant
     {
         if ($id === null) {
@@ -16,5 +18,10 @@ final class FakeTenantResolver implements SupportTenantResolver
         }
 
         return new FakeTenant((int) $id);
+    }
+
+    public function current(): ?SupportTenant
+    {
+        return self::$current;
     }
 }

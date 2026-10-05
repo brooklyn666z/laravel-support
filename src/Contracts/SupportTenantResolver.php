@@ -11,4 +11,10 @@ namespace Fillindev\Support\Contracts;
 interface SupportTenantResolver
 {
     public function resolve(int|string|null $id): ?SupportTenant;
+
+    /**
+     * Текущий тенант из контекста запроса хоста, без id в URL.
+     * null — хост не выделил арендатора, тикет создаётся без tenant.
+     */
+    public function current(): ?SupportTenant;
 }

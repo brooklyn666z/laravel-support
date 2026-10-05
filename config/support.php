@@ -39,12 +39,17 @@ return [
     | - user_resolver         → Fillindev\Support\Contracts\SupportUserResolver
     | - tenant_resolver       → Fillindev\Support\Contracts\SupportTenantResolver
     | - notification_gateway  → Fillindev\Support\Contracts\SupportNotificationGateway
+    | - attachment_store      → Fillindev\Support\Contracts\SupportAttachmentStore
+    |
+    | attachment_store = null подставляет пустое хранилище: файлы не пишутся,
+    | список вложений у сообщения пустой.
     |
     */
     'bindings' => [
         'user_resolver' => null,
         'tenant_resolver' => null,
         'notification_gateway' => null,
+        'attachment_store' => null,
     ],
 
 ];

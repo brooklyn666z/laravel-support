@@ -15,4 +15,8 @@ interface SupportableUser
     public function getSupportDisplayName(): string;
 
     public function getSupportEmail(): ?string;
+
+    public function getSupportPhoneCode(): ?string;
+
+    public function getSupportPhone(): ?string;
 }

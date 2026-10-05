@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Fillindev\Support;
 
+use Fillindev\Support\Attachments\NullAttachmentStore;
+use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Contracts\SupportNotificationGateway;
 use Fillindev\Support\Contracts\SupportTenantResolver;
 use Fillindev\Support\Contracts\SupportUserResolver;
@@ -44,6 +46,16 @@ class SupportServiceProvider extends ServiceProvider
                 return $app->make($concrete);
             });
         }
+
+        $this->app->bind(SupportAttachmentStore::class, function ($app) {
+            $concrete = $app['config']->get('support.bindings.attachment_store');
+
+            if (! is_string($concrete) || $concrete === '') {
+                return new NullAttachmentStore;
+            }
+
+            return $app->make($concrete);
+        });
     }
 
     public function boot(): void
