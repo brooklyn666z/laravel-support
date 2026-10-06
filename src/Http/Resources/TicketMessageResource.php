@@ -26,15 +26,15 @@ use OpenApi\Attributes as OA;
                 new OA\Property(property: 'phone', type: 'string', nullable: true, example: '9001234567'),
             ],
         ),
-        new OA\Property(property: 'is_internal', type: 'boolean', example: false),
+        new OA\Property(property: 'is_internal', description: 'Внутренняя заметка оператора. В клиентской карточке таких сообщений нет.', type: 'boolean', example: false),
         new OA\Property(property: 'body', type: 'string', example: 'Текст сообщения'),
-        new OA\Property(property: 'attachments', type: 'array', items: new OA\Items(
+        new OA\Property(property: 'attachments', description: 'Вложения сообщения. Пустой массив, если файлов нет.', type: 'array', items: new OA\Items(
             properties: [
-                new OA\Property(property: 'id', type: 'integer'),
-                new OA\Property(property: 'file_name', type: 'string'),
-                new OA\Property(property: 'mime_type', type: 'string'),
-                new OA\Property(property: 'size', type: 'integer'),
-                new OA\Property(property: 'url', type: 'string'),
+                new OA\Property(property: 'id', type: 'integer', example: 15),
+                new OA\Property(property: 'file_name', type: 'string', example: 'note.txt'),
+                new OA\Property(property: 'mime_type', type: 'string', example: 'text/plain'),
+                new OA\Property(property: 'size', description: 'Размер в байтах', type: 'integer', example: 12288),
+                new OA\Property(property: 'url', type: 'string', example: '/storage/note.txt'),
             ],
             type: 'object',
         )),

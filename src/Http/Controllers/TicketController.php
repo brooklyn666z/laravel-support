@@ -20,7 +20,7 @@ use OpenApi\Attributes as OA;
 
 #[OA\Tag(
     name: 'Support Tickets',
-    description: 'Обращения клиента в техподдержку платформы.',
+    description: 'Обращения клиента в техподдержку. Видны только свои тикеты текущего аккаунта. super admin проходит без этой проверки.',
 )]
 class TicketController extends SupportController
 {
@@ -38,6 +38,7 @@ class TicketController extends SupportController
         path: '/support/categories',
         tags: ['Support Tickets'],
         summary: 'Категории обращений',
+        description: 'Только активные категории, по полю sort.',
         security: [['bearerAuth' => []]],
         responses: [
             new OA\Response(
@@ -45,19 +46,12 @@ class TicketController extends SupportController
                 description: 'OK',
                 content: new OA\JsonContent(
                     properties: [
-                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(
-                            properties: [
-                                new OA\Property(property: 'id', type: 'integer', example: 2),
-                                new OA\Property(property: 'code', type: 'string', example: 'technical'),
-                                new OA\Property(property: 'name', type: 'string', example: 'Технический вопрос'),
-                            ],
-                            type: 'object',
-                        )),
+                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/SupportCategory')),
                     ],
                 ),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 403, description: 'Пользователь не относится к текущему аккаунту'),
         ],
     )]
     public function categories(): JsonResponse
@@ -73,17 +67,15 @@ class TicketController extends SupportController
         path: '/support/tickets',
         tags: ['Support Tickets'],
         summary: 'Список своих обращений',
+        description: 'По 15 записей. В элементах нет messages. summary считает все свои обращения аккаунта, страница на него не влияет.',
         security: [['bearerAuth' => []]],
         parameters: [
-            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'По 15 записей', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/TicketResource')),
-                new OA\Property(property: 'summary', type: 'object'),
-            ])),
+            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketPage')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 403, description: 'Пользователь не относится к текущему аккаунту'),
         ],
     )]
     public function index(): JsonResponse
@@ -103,26 +95,20 @@ class TicketController extends SupportController
         path: '/support/tickets',
         tags: ['Support Tickets'],
         summary: 'Создать обращение',
+        description: 'Без файлов — application/json. С файлами — multipart/form-data. Приоритет по умолчанию normal. В ответе есть messages, первое сообщение содержит вложения.',
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(
             required: true,
-            content: new OA\JsonContent(
-                required: ['subject', 'body'],
-                properties: [
-                    new OA\Property(property: 'subject', type: 'string', example: 'Не открывается модуль'),
-                    new OA\Property(property: 'body', type: 'string', example: 'Текст обращения'),
-                    new OA\Property(property: 'category_id', type: 'integer', nullable: true, example: 2),
-                    new OA\Property(property: 'priority', type: 'string', nullable: true, enum: ['low', 'normal', 'high', 'urgent']),
-                ],
-            ),
+            content: [
+                new OA\MediaType(mediaType: 'application/json', schema: new OA\Schema(ref: '#/components/schemas/StoreTicketRequest')),
+                new OA\MediaType(mediaType: 'multipart/form-data', schema: new OA\Schema(ref: '#/components/schemas/StoreTicketRequest')),
+            ],
         ),
         responses: [
-            new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'data', ref: '#/components/schemas/TicketResource'),
-            ])),
+            new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Forbidden'),
-            new OA\Response(response: 422, description: 'Ошибка валидации'),
+            new OA\Response(response: 403, description: 'Пользователь не относится к текущему аккаунту'),
+            new OA\Response(ref: '#/components/responses/SupportUnprocessable', response: 422),
         ],
     )]
     public function store(StoreTicketRequest $request): JsonResponse
@@ -152,16 +138,15 @@ class TicketController extends SupportController
         path: '/support/tickets/{ticket}',
         tags: ['Support Tickets'],
         summary: 'Карточка обращения',
+        description: 'Отмечает обращения прочитанным клиентом. В messages только публичные сообщения, с автором и вложениями.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'data', ref: '#/components/schemas/TicketResource'),
-            ])),
+            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 403, description: 'Чужое обращение или другой аккаунт'),
             new OA\Response(response: 404, description: 'Не найдено'),
         ],
     )]
@@ -178,25 +163,24 @@ class TicketController extends SupportController
         path: '/support/tickets/{ticket}/messages',
         tags: ['Support Tickets'],
         summary: 'Ответ клиента',
+        description: 'Сообщение всегда публичное. В закрытое обращение писать нельзя. Ответ — карточка со всеми публичными сообщениями.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         requestBody: new OA\RequestBody(
             required: true,
-            content: new OA\JsonContent(
-                required: ['body'],
-                properties: [
-                    new OA\Property(property: 'body', type: 'string', example: 'Уточнение'),
-                ],
-            ),
+            content: [
+                new OA\MediaType(mediaType: 'application/json', schema: new OA\Schema(ref: '#/components/schemas/StoreClientMessageRequest')),
+                new OA\MediaType(mediaType: 'multipart/form-data', schema: new OA\Schema(ref: '#/components/schemas/StoreClientMessageRequest')),
+            ],
         ),
         responses: [
-            new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'data', ref: '#/components/schemas/TicketResource'),
-            ])),
+            new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 422, description: 'Пустое сообщение или тикет закрыт'),
+            new OA\Response(response: 403, description: 'Чужое обращение или другой аккаунт'),
+            new OA\Response(response: 404, description: 'Не найдено'),
+            new OA\Response(ref: '#/components/responses/SupportUnprocessable', response: 422),
         ],
     )]
     public function storeMessage(StoreMessageRequest $request, int $ticket): JsonResponse
@@ -216,16 +200,17 @@ class TicketController extends SupportController
         path: '/support/tickets/{ticket}/close',
         tags: ['Support Tickets'],
         summary: 'Закрыть своё обращение',
+        description: 'Тело запроса не нужно. Если обращение уже закрыто, статус не меняется и ответ остаётся 200.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'data', ref: '#/components/schemas/TicketResource'),
-            ])),
+            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 422, description: 'Недопустимый переход статуса'),
+            new OA\Response(response: 403, description: 'Чужое обращение или другой аккаунт'),
+            new OA\Response(response: 404, description: 'Не найдено'),
+            new OA\Response(ref: '#/components/responses/SupportUnprocessable', response: 422),
         ],
     )]
     public function close(int $ticket): JsonResponse

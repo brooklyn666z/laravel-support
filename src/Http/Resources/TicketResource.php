@@ -28,7 +28,7 @@ use OpenApi\Attributes as OA;
             ],
         ),
         new OA\Property(property: 'subject', type: 'string', example: 'Не открывается модуль'),
-        new OA\Property(property: 'body', type: 'string', nullable: true, example: 'Текст первого сообщения'),
+        new OA\Property(property: 'body', description: 'Текст первого публичного сообщения. В списке messages нет, тело берётся отсюда.', type: 'string', nullable: true, example: 'Текст первого сообщения'),
         new OA\Property(property: 'status', type: 'string', enum: ['open', 'in_progress', 'waiting_customer', 'resolved', 'closed'], example: 'open'),
         new OA\Property(property: 'priority', type: 'string', enum: ['low', 'normal', 'high', 'urgent'], example: 'normal'),
         new OA\Property(property: 'last_replied_at', type: 'string', format: 'date-time', nullable: true),
@@ -38,7 +38,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'agent_last_read_at', type: 'string', format: 'date-time', nullable: true, description: 'Время отправки последнего сообщения, прочитанного оператором'),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
-        new OA\Property(property: 'messages', type: 'array', items: new OA\Items(ref: '#/components/schemas/TicketMessageResource')),
+        new OA\Property(property: 'messages', description: 'Есть только в карточке. Клиенту не отдаются внутренние заметки. В списке ключ отсутствует.', type: 'array', items: new OA\Items(ref: '#/components/schemas/TicketMessageResource')),
     ],
 )]
 class TicketResource extends JsonResource
