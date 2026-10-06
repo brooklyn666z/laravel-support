@@ -116,12 +116,14 @@ class TicketController extends SupportController
         $this->authorize('create', Ticket::class);
 
         return $this->attempt(function () use ($request) {
+            $categoryId = $request->validated('category_id');
+
             $ticket = $this->tickets->create(
                 requester: $this->actor(),
                 subject: $request->validated('subject'),
                 body: $request->validated('body'),
                 tenant: $this->tenants->current(),
-                categoryId: $request->validated('category_id'),
+                categoryId: $categoryId === null ? null : (int) $categoryId,
                 priority: $request->enum('priority', TicketPriority::class) ?? TicketPriority::Normal,
             );
 
