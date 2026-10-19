@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fillindev\Support\Http\Controllers\Admin;
 
+use Fillindev\Support\Broadcasting\SupportRealtime;
 use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Contracts\SupportUserResolver;
 use Fillindev\Support\Enums\TicketPriority;
@@ -35,6 +36,7 @@ class TicketController extends SupportController
         private readonly MessageService $messages,
         private readonly SupportUserResolver $users,
         private readonly SupportAttachmentStore $attachments,
+        private readonly SupportRealtime $realtime,
     ) {
         parent::__construct($presenter);
     }
@@ -135,6 +137,7 @@ class TicketController extends SupportController
                 $request->boolean('is_internal'),
             );
             $this->attachments->store($message, $this->uploadedFiles($request));
+            $this->realtime->message($ticket, $message);
 
             return $this->ticketResponse($ticket, false, 201);
         });

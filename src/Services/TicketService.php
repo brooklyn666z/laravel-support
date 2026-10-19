@@ -13,6 +13,7 @@ use Fillindev\Support\Events\TicketCategoryChanged;
 use Fillindev\Support\Events\TicketClosed;
 use Fillindev\Support\Events\TicketCreated;
 use Fillindev\Support\Events\TicketPriorityChanged;
+use Fillindev\Support\Events\TicketRead;
 use Fillindev\Support\Events\TicketReopened;
 use Fillindev\Support\Events\TicketStatusChanged;
 use Fillindev\Support\Models\Ticket;
@@ -182,8 +183,10 @@ class TicketService
         }
 
         $ticket->update([$column => $latest->created_at]);
+        $ticket = $ticket->refresh();
+        $this->events->dispatch(new TicketRead($ticket, $byAgent));
 
-        return $ticket->refresh();
+        return $ticket;
     }
 
     public function changePriority(Ticket $ticket, TicketPriority $priority, SupportableUser $actor): Ticket

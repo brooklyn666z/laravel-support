@@ -18,4 +18,13 @@ abstract class TestCase extends Orchestra
             SupportServiceProvider::class,
         ];
     }
+
+    protected function getEnvironmentSetUp($app): void
+    {
+        $app['config']->set('broadcasting.default', 'null');
+        $app['config']->set('broadcasting.connections.null', [
+            'driver' => 'null',
+        ]);
+        $app['config']->set('queue.default', 'sync');
+    }
 }

@@ -63,6 +63,7 @@ php artisan vendor:publish --tag=support-config
 
 - Модели: Ticket, TicketMessage, TicketCategory, TicketEvent
 - Сервисы: `TicketService`, `MessageService` и доменные события (история пишется слушателем пакета)
+- WebSocket: `SupportMessageBroadcast`, `SupportTicketBroadcast`, `SupportTicketReadBroadcast`. Имена каналов — `Fillindev\Support\Broadcasting\SupportChannels`. Авторизацию каналов регистрирует хост
 - PHP enums: статус и приоритет тикета
 - Контракты: `SupportableUser`, `SupportTenant`, `SupportUserResolver`, `SupportTenantResolver`, `SupportNotificationGateway`
 - Уведомления хоста подписываются на доменные события и вызывают `SupportNotificationGateway`
@@ -80,6 +81,25 @@ Internal note — флаг `TicketMessage.is_internal`, не отдельная 
     'notification_gateway' => \App\Support\NotificationGateway::class,
 ],
 ```
+
+## WebSocket
+
+События уходят в очередь (`ShouldBroadcast`). Нужны `BROADCAST_CONNECTION=pusher` (Soketi) и worker очереди.
+
+| Событие Echo | Когда |
+|---|---|
+| `.support.message.posted` | Сообщение, уже с вложениями |
+| `.support.ticket.updated` | Создание, назначение, статус, приоритет, категория, закрытие, переоткрытие |
+| `.support.ticket.read` | Карточку открыли и дочитали |
+
+Каналы (`Echo.private`, префикс `private-` добавляет Echo):
+
+- `support.ticket.{id}` — клиент и операторы, без внутренних заметок
+- `support.ticket.{id}.staff` — только операторы, внутренние заметки
+- `support.user.{id}` — личный канал автора обращения
+- `support.queue` — общая очередь операторов
+
+Внутренняя заметка не попадает в `support.ticket.{id}` и `support.user.{id}`.
 
 ## Что остаётся в хосте
 

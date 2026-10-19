@@ -9,6 +9,7 @@ use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Contracts\SupportNotificationGateway;
 use Fillindev\Support\Contracts\SupportTenantResolver;
 use Fillindev\Support\Contracts\SupportUserResolver;
+use Fillindev\Support\Listeners\BroadcastSupportRealtime;
 use Fillindev\Support\Listeners\RecordTicketHistory;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\ServiceProvider;
@@ -62,6 +63,7 @@ class SupportServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->app->make('events')->subscribe(RecordTicketHistory::class);
+        $this->app->make('events')->subscribe(BroadcastSupportRealtime::class);
 
         if ($this->app->runningInConsole()) {
             $this->publishes([

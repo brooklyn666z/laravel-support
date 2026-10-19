@@ -8,9 +8,11 @@ use Fillindev\Support\Contracts\SupportableUser;
 use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Contracts\SupportUserResolver;
 use Fillindev\Support\Enums\TicketStatus;
+use Fillindev\Support\Http\Resources\TicketMessageResource;
 use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketMessage;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 
 /**
  * Готовит тикет к JSON: текст первого публичного сообщения, автор и вложения.
@@ -94,6 +96,24 @@ final class TicketPresenter
         );
 
         return $ticket;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function messagePayload(TicketMessage $message): array
+    {
+        $message->setAttribute('author_payload', $this->authorPayload($message));
+        $message->setAttribute('attachment_payload', $this->attachments->list($message));
+
+        $request = app()->bound('request') ? request() : Request::create('/');
+
+        return json_decode(
+            json_encode(TicketMessageResource::make($message)->resolve($request), JSON_THROW_ON_ERROR),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fillindev\Support\Http\Controllers;
 
+use Fillindev\Support\Broadcasting\SupportRealtime;
 use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Contracts\SupportTenantResolver;
 use Fillindev\Support\Enums\TicketPriority;
@@ -30,6 +31,7 @@ class TicketController extends SupportController
         private readonly MessageService $messages,
         private readonly SupportTenantResolver $tenants,
         private readonly SupportAttachmentStore $attachments,
+        private readonly SupportRealtime $realtime,
     ) {
         parent::__construct($presenter);
     }
@@ -130,6 +132,7 @@ class TicketController extends SupportController
             $opening = $ticket->messages()->oldest('id')->first();
             if ($opening) {
                 $this->attachments->store($opening, $this->uploadedFiles($request));
+                $this->realtime->message($ticket, $opening);
             }
 
             return $this->ticketResponse($ticket, true, 201);
@@ -193,6 +196,7 @@ class TicketController extends SupportController
         return $this->attempt(function () use ($request, $ticket) {
             $message = $this->messages->post($ticket, $this->actor(), $request->validated('body'), false);
             $this->attachments->store($message, $this->uploadedFiles($request));
+            $this->realtime->message($ticket, $message);
 
             return $this->ticketResponse($ticket, true, 201);
         });
