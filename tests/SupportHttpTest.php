@@ -16,6 +16,7 @@ use Fillindev\Support\Tests\Stubs\FakeNotificationGateway;
 use Fillindev\Support\Tests\Stubs\FakeUserResolver;
 use Fillindev\Support\Tests\Stubs\HttpActor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Gate;
@@ -95,6 +96,15 @@ class SupportHttpTest extends TestCase
         }
 
         $this->assertNotContains('support/tickets/{ticket}/priority', $uris);
+
+        $show = collect(Route::getRoutes())->first(
+            fn ($route) => $route->uri() === 'support/tickets/{ticket}' && in_array('GET', $route->methods(), true)
+        );
+        $this->assertNotNull($show);
+        $this->assertSame('[0-9]+', $show->wheres['ticket'] ?? null);
+        $this->assertNull(Route::getRoutes()->match(
+            Request::create('/support/tickets/unread', 'GET')
+        )->parameter('ticket'));
     }
 
     public function test_unread_counts_only_support_replies_after_last_read(): void
