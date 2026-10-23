@@ -16,6 +16,7 @@ use Fillindev\Support\Models\TicketCategory;
 use Fillindev\Support\Services\MessageService;
 use Fillindev\Support\Services\TicketService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Gate;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(
@@ -94,8 +95,8 @@ class TicketController extends SupportController
     #[OA\Get(
         path: '/support/tickets/unread',
         tags: ['Support Tickets'],
-        summary: 'Непрочитанные ответы поддержки',
-        description: 'Считает публичные сообщения не от самого клиента, новее requester_last_read_at. Внутренние заметки не входят. messages — число таких сообщений, tickets — число обращений, где они есть.',
+        summary: 'Непрочитанные сообщения',
+        description: 'Клиент: публичные ответы поддержки новее requester_last_read_at, только в своих обращениях. Оператор (handle): сообщения автора обращения новее agent_last_read_at по всей очереди. Внутренние заметки не входят. messages — число таких сообщений, tickets — число обращений, где они есть.',
         security: [['bearerAuth' => []]],
         responses: [
             new OA\Response(
@@ -122,8 +123,13 @@ class TicketController extends SupportController
     {
         $this->authorize('viewAny', Ticket::class);
 
+        $actor = $this->actor();
+        $data = Gate::forUser($actor)->allows('handle', Ticket::class)
+            ? $this->tickets->unreadForResponder()
+            : $this->tickets->unreadFor($actor);
+
         return response()->json([
-            'data' => $this->tickets->unreadFor($this->actor()),
+            'data' => $data,
         ]);
     }
 

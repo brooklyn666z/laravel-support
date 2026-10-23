@@ -34,7 +34,14 @@ class SupportHttpTest extends TestCase
 
         parent::setUp();
 
-        Gate::before(fn () => true);
+        Gate::before(function ($user, string $ability) {
+            if ($ability === 'handle') {
+                return null;
+            }
+
+            return true;
+        });
+        Gate::define('handle', fn () => true);
         FakeAttachmentStore::reset();
     }
 
@@ -109,6 +116,8 @@ class SupportHttpTest extends TestCase
 
     public function test_unread_counts_only_support_replies_after_last_read(): void
     {
+        Gate::define('handle', fn () => false);
+
         $client = new HttpActor(7);
         $operator = new HttpActor(3, 'Оператор', 'operator@example.com');
         $tickets = $this->app->make(TicketService::class);
@@ -148,6 +157,50 @@ class SupportHttpTest extends TestCase
             'data' => [
                 'messages' => 0,
                 'tickets' => 0,
+            ],
+        ]);
+    }
+
+    public function test_unread_for_responder_counts_requester_messages_until_agent_opens_ticket(): void
+    {
+        Gate::define('handle', fn () => true);
+
+        $client = new HttpActor(7);
+        $operator = new HttpActor(3, 'Оператор', 'operator@example.com');
+        $tickets = $this->app->make(TicketService::class);
+        $messages = $this->app->make(MessageService::class);
+
+        $ticket = $tickets->create($client, 'Вопрос', 'Моё сообщение');
+        $tickets->create(new HttpActor(8), 'Чужой', 'Тоже новое');
+        $messages->post($ticket, $operator, 'Ответ оператора');
+        $messages->post($ticket, $operator, 'Внутренняя заметка', internal: true);
+
+        $unread = $this->actingAs($operator)->getJson('/support/tickets/unread');
+        $unread->assertOk();
+        $unread->assertExactJson([
+            'data' => [
+                'messages' => 2,
+                'tickets' => 2,
+            ],
+        ]);
+
+        $messages->post($ticket, $client, 'Уточнение');
+
+        $afterReply = $this->actingAs($operator)->getJson('/support/tickets/unread');
+        $afterReply->assertExactJson([
+            'data' => [
+                'messages' => 3,
+                'tickets' => 2,
+            ],
+        ]);
+
+        $this->actingAs($operator)->getJson('/support/admin/tickets/'.$ticket->id)->assertOk();
+
+        $read = $this->actingAs($operator)->getJson('/support/tickets/unread');
+        $read->assertExactJson([
+            'data' => [
+                'messages' => 1,
+                'tickets' => 1,
             ],
         ]);
     }

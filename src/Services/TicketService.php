@@ -198,6 +198,33 @@ class TicketService
     }
 
     /**
+     * Сообщения автора обращения, которые оператор ещё не открывал.
+     * Ответы операторов и внутренние заметки не считаются.
+     *
+     * @return array{messages: int, tickets: int}
+     */
+    public function unreadForResponder(): array
+    {
+        $messages = SupportTables::name('ticket_messages');
+        $tickets = SupportTables::name('tickets');
+
+        $query = TicketMessage::query()
+            ->public()
+            ->join($tickets, $tickets.'.id', '=', $messages.'.ticket_id')
+            ->whereColumn($messages.'.author_type', $tickets.'.requester_type')
+            ->whereColumn($messages.'.author_id', $tickets.'.requester_id')
+            ->where(function ($query) use ($messages, $tickets): void {
+                $query->whereNull($tickets.'.agent_last_read_at')
+                    ->orWhereColumn($messages.'.created_at', '>', $tickets.'.agent_last_read_at');
+            });
+
+        return [
+            'messages' => (clone $query)->count($messages.'.id'),
+            'tickets' => (clone $query)->distinct()->count($tickets.'.id'),
+        ];
+    }
+
+    /**
      * Запоминает время отправки последнего сообщения, которое увидел клиент или оператор.
      */
     public function markRead(Ticket $ticket, bool $byAgent): Ticket
