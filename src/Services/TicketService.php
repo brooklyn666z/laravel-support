@@ -19,6 +19,7 @@ use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketCategory;
 use Fillindev\Support\Models\TicketMessage;
 use Fillindev\Support\SupportIds;
+use Fillindev\Support\SupportTables;
 use Fillindev\Support\TicketNumberGenerator;
 use Fillindev\Support\TicketWorkflow;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -163,6 +164,37 @@ class TicketService
 
             return $ticket->refresh();
         });
+    }
+
+    /**
+     * Публичные ответы поддержки, которые клиент ещё не открывал.
+     * Свои сообщения и внутренние заметки не считаются.
+     *
+     * @return array{messages: int, tickets: int}
+     */
+    public function unreadFor(SupportableUser $requester): array
+    {
+        $messages = SupportTables::name('ticket_messages');
+        $tickets = SupportTables::name('tickets');
+
+        $query = TicketMessage::query()
+            ->public()
+            ->join($tickets, $tickets.'.id', '=', $messages.'.ticket_id')
+            ->where($tickets.'.requester_type', $requester->getSupportUserType())
+            ->where($tickets.'.requester_id', SupportIds::toInt($requester->getSupportUserId()))
+            ->where(function ($query) use ($messages, $tickets): void {
+                $query->whereNull($tickets.'.requester_last_read_at')
+                    ->orWhereColumn($messages.'.created_at', '>', $tickets.'.requester_last_read_at');
+            })
+            ->where(function ($query) use ($messages, $tickets): void {
+                $query->whereColumn($messages.'.author_type', '!=', $tickets.'.requester_type')
+                    ->orWhereColumn($messages.'.author_id', '!=', $tickets.'.requester_id');
+            });
+
+        return [
+            'messages' => (clone $query)->count($messages.'.id'),
+            'tickets' => (clone $query)->distinct()->count($tickets.'.id'),
+        ];
     }
 
     /**

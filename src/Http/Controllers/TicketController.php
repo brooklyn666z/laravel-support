@@ -91,6 +91,42 @@ class TicketController extends SupportController
         ])->response();
     }
 
+    #[OA\Get(
+        path: '/support/tickets/unread',
+        tags: ['Support Tickets'],
+        summary: 'Непрочитанные ответы поддержки',
+        description: 'Считает публичные сообщения не от самого клиента, новее requester_last_read_at. Внутренние заметки не входят. messages — число таких сообщений, tickets — число обращений, где они есть.',
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'OK',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'messages', type: 'integer', example: 2),
+                                new OA\Property(property: 'tickets', type: 'integer', example: 1),
+                            ],
+                            type: 'object',
+                        ),
+                    ],
+                ),
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Нет доступа'),
+        ],
+    )]
+    public function unread(): JsonResponse
+    {
+        $this->authorize('viewAny', Ticket::class);
+
+        return response()->json([
+            'data' => $this->tickets->unreadFor($this->actor()),
+        ]);
+    }
+
     #[OA\Post(
         path: '/support/tickets',
         tags: ['Support Tickets'],

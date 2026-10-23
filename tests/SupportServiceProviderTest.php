@@ -41,6 +41,7 @@ class SupportServiceProviderTest extends TestCase
         $expected = [
             'support/categories',
             'support/tickets',
+            'support/tickets/unread',
             'support/tickets/{ticket}',
             'support/tickets/{ticket}/messages',
             'support/tickets/{ticket}/close',

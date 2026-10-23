@@ -9,6 +9,7 @@ use Fillindev\Support\Enums\TicketStatus;
 use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketEvent;
 use Fillindev\Support\Routing\SupportRoutes;
+use Fillindev\Support\Services\MessageService;
 use Fillindev\Support\Services\TicketService;
 use Fillindev\Support\Tests\Stubs\FakeAttachmentStore;
 use Fillindev\Support\Tests\Stubs\FakeNotificationGateway;
@@ -71,6 +72,7 @@ class SupportHttpTest extends TestCase
         $expected = [
             'support/categories',
             'support/tickets',
+            'support/tickets/unread',
             'support/tickets/{ticket}',
             'support/tickets/{ticket}/messages',
             'support/tickets/{ticket}/close',
@@ -93,6 +95,51 @@ class SupportHttpTest extends TestCase
         }
 
         $this->assertNotContains('support/tickets/{ticket}/priority', $uris);
+    }
+
+    public function test_unread_counts_only_support_replies_after_last_read(): void
+    {
+        $client = new HttpActor(7);
+        $operator = new HttpActor(3, 'Оператор', 'operator@example.com');
+        $tickets = $this->app->make(TicketService::class);
+        $messages = $this->app->make(MessageService::class);
+
+        $ticket = $tickets->create($client, 'Вопрос', 'Моё сообщение');
+        $other = $tickets->create(new HttpActor(8), 'Чужой', 'Не мой');
+        $messages->post($other, $operator, 'Ответ чужому клиенту');
+
+        $empty = $this->actingAs($client)->getJson('/support/tickets/unread');
+        $empty->assertOk();
+        $empty->assertExactJson([
+            'data' => [
+                'messages' => 0,
+                'tickets' => 0,
+            ],
+        ]);
+
+        $messages->post($ticket, $operator, 'Первый ответ');
+        $messages->post($ticket, $operator, 'Внутренняя заметка', internal: true);
+        $messages->post($ticket, $operator, 'Второй ответ');
+
+        $unread = $this->actingAs($client)->getJson('/support/tickets/unread');
+        $unread->assertOk();
+        $unread->assertExactJson([
+            'data' => [
+                'messages' => 2,
+                'tickets' => 1,
+            ],
+        ]);
+
+        $this->actingAs($client)->getJson('/support/tickets/'.$ticket->id)->assertOk();
+
+        $read = $this->actingAs($client)->getJson('/support/tickets/unread');
+        $read->assertOk();
+        $read->assertExactJson([
+            'data' => [
+                'messages' => 0,
+                'tickets' => 0,
+            ],
+        ]);
     }
 
     public function test_create_stores_requester_type(): void

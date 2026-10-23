@@ -28,6 +28,7 @@ final class SupportRoutes
     {
         Route::get('support/categories', [TicketController::class, 'categories'])->name($namePrefix.'categories');
         Route::get('support/tickets', [TicketController::class, 'index'])->name($namePrefix.'tickets.index');
+        Route::get('support/tickets/unread', [TicketController::class, 'unread'])->name($namePrefix.'tickets.unread');
         Route::post('support/tickets', [TicketController::class, 'store'])->name($namePrefix.'tickets.store');
         Route::get('support/tickets/{ticket}', [TicketController::class, 'show'])->name($namePrefix.'tickets.show');
         Route::post('support/tickets/{ticket}/messages', [TicketController::class, 'storeMessage'])->name($namePrefix.'tickets.messages.store');
