@@ -10,7 +10,9 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * Жизненный цикл тикета: создание, назначение, статус, приоритет, категория, закрытие, переоткрытие.
+ * Изменение тикета.
+ * Создание и смена статуса (включая закрытие и переоткрытие) идут в support.lifecycle.
+ * Назначение, приоритет и категория остаются на карточке, у автора и в очереди.
  */
 class SupportTicketBroadcast implements ShouldBroadcast
 {
@@ -29,9 +31,21 @@ class SupportTicketBroadcast implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
+        $requester = new PrivateChannel(SupportChannels::user(
+            (string) $this->ticket['requester_type'],
+            (int) $this->ticket['requester_id'],
+        ));
+
+        if ($this->reason->isLifecycle()) {
+            return [
+                new PrivateChannel(SupportChannels::LIFECYCLE),
+                $requester,
+            ];
+        }
+
         return [
             new PrivateChannel(SupportChannels::ticket((int) $this->ticket['id'])),
-            new PrivateChannel(SupportChannels::user((int) $this->ticket['requester_id'])),
+            $requester,
             new PrivateChannel(SupportChannels::QUEUE),
         ];
     }

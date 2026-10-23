@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Fillindev\Support\Services;
 
 use Fillindev\Support\Contracts\SupportableUser;
-use Fillindev\Support\Contracts\SupportTenant;
 use Fillindev\Support\Enums\TicketPriority;
 use Fillindev\Support\Enums\TicketStatus;
 use Fillindev\Support\Events\TicketAssigned;
@@ -38,7 +37,6 @@ class TicketService
         SupportableUser $requester,
         string $subject,
         string $body,
-        ?SupportTenant $tenant = null,
         ?int $categoryId = null,
         TicketPriority $priority = TicketPriority::Normal,
     ): Ticket {
@@ -48,12 +46,13 @@ class TicketService
         $this->assertFilled($body, 'Сообщение');
         $this->assertCategory($categoryId);
 
-        return DB::transaction(function () use ($requester, $subject, $body, $tenant, $categoryId, $priority): Ticket {
+        return DB::transaction(function () use ($requester, $subject, $body, $categoryId, $priority): Ticket {
             $requesterId = SupportIds::toInt($requester->getSupportUserId());
+            $requesterType = $requester->getSupportUserType();
 
             $ticket = Ticket::query()->create([
                 'number' => 'tmp-'.Str::uuid(),
-                'tenant_id' => $tenant === null ? null : SupportIds::toInt($tenant->getSupportTenantId()),
+                'requester_type' => $requesterType,
                 'requester_id' => $requesterId,
                 'category_id' => $categoryId,
                 'subject' => $subject,
@@ -67,6 +66,7 @@ class TicketService
             ]);
 
             $message = $ticket->messages()->create([
+                'author_type' => $requesterType,
                 'author_id' => $requesterId,
                 'is_internal' => false,
                 'body' => $body,
@@ -81,14 +81,18 @@ class TicketService
     public function assign(Ticket $ticket, SupportableUser $assignee, SupportableUser $actor): Ticket
     {
         $assigneeId = SupportIds::toInt($assignee->getSupportUserId());
+        $assigneeType = $assignee->getSupportUserType();
 
-        if ($ticket->assignee_id === $assigneeId) {
+        if ($ticket->assignee_id === $assigneeId && $ticket->assignee_type === $assigneeType) {
             return $ticket;
         }
 
-        return DB::transaction(function () use ($ticket, $assigneeId, $actor): Ticket {
+        return DB::transaction(function () use ($ticket, $assigneeId, $assigneeType, $actor): Ticket {
             $previousAssigneeId = $ticket->assignee_id;
-            $ticket->update(['assignee_id' => $assigneeId]);
+            $ticket->update([
+                'assignee_id' => $assigneeId,
+                'assignee_type' => $assigneeType,
+            ]);
             $this->events->dispatch(new TicketAssigned($ticket, $previousAssigneeId, $actor));
 
             return $ticket->refresh();

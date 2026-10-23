@@ -11,7 +11,6 @@ use Fillindev\Support\Exceptions\InvalidTicketTransition;
 use Fillindev\Support\Models\TicketCategory;
 use Fillindev\Support\Services\MessageService;
 use Fillindev\Support\Services\TicketService;
-use Fillindev\Support\Tests\Stubs\FakeTenant;
 use Fillindev\Support\Tests\Stubs\FakeUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -57,14 +56,13 @@ class TicketServiceTest extends TestCase
             $requester,
             'Не открывается модуль',
             'Первое сообщение',
-            new FakeTenant(10, 'Ромашка'),
             $category->id,
             TicketPriority::High,
         );
 
         $this->assertSame('SUP-'.now()->year.'-'.str_pad((string) $ticket->id, 5, '0', STR_PAD_LEFT), $ticket->number);
         $this->assertSame(TicketStatus::Open, $ticket->status);
-        $this->assertSame(10, $ticket->tenant_id);
+        $this->assertSame('user', $ticket->requester_type);
         $this->assertSame(7, $ticket->requester_id);
         $this->assertSame(1, $ticket->messages()->public()->count());
 

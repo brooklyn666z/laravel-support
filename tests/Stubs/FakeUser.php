@@ -14,7 +14,13 @@ final class FakeUser implements SupportableUser
         private readonly ?string $email = 'ivan@example.com',
         private readonly ?string $phoneCode = '+7',
         private readonly ?string $phone = '9001234567',
+        private readonly string $type = 'user',
     ) {}
+
+    public function getSupportUserType(): string
+    {
+        return $this->type;
+    }
 
     public function getSupportUserId(): int|string
     {

@@ -117,21 +117,22 @@ final class TicketPresenter
     }
 
     /**
-     * @return array{id: int|string, name: string, email: string|null, phone_code: string|null, phone: string|null}|null
+     * @return array{type: string, id: int|string, name: string, email: string|null, phone_code: string|null, phone: string|null}|null
      */
     private function authorPayload(TicketMessage $message): ?array
     {
-        if ($message->author_id === null) {
+        if ($message->author_id === null || $message->author_type === null || $message->author_type === '') {
             return null;
         }
 
-        $author = $this->users->resolve($message->author_id);
+        $author = $this->users->resolve((string) $message->author_type, $message->author_id);
 
         if (! $author instanceof SupportableUser) {
             return null;
         }
 
         return [
+            'type' => $author->getSupportUserType(),
             'id' => $author->getSupportUserId(),
             'name' => $author->getSupportDisplayName(),
             'email' => $author->getSupportEmail(),

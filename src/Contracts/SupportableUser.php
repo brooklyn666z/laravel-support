@@ -10,6 +10,11 @@ namespace Fillindev\Support\Contracts;
  */
 interface SupportableUser
 {
+    /**
+     * Короткий тип модели хоста: user, agent. Попадает в имя личного канала.
+     */
+    public function getSupportUserType(): string;
+
     public function getSupportUserId(): int|string;
 
     public function getSupportDisplayName(): string;

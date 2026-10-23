@@ -45,11 +45,12 @@ class TicketController extends SupportController
         path: '/support/admin/tickets',
         tags: ['Admin Support Tickets'],
         summary: 'Очередь обращений',
-        description: 'По 15 записей, без messages. status фильтрует список и не фильтрует summary. tenant_id сужает и список, и summary.',
+        description: 'По 15 записей, без messages. status фильтрует список и не фильтрует summary. requester_id и requester_type сужают и список, и summary.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'status', in: 'query', required: false, description: 'Фильтр списка. На summary не влияет.', schema: new OA\Schema(type: 'string', enum: ['open', 'in_progress', 'waiting_customer', 'resolved', 'closed'])),
-            new OA\Parameter(name: 'tenant_id', in: 'query', required: false, description: 'Аккаунт. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'requester_type', in: 'query', required: false, description: 'Тип автора: user или agent. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'string', example: 'agent')),
+            new OA\Parameter(name: 'requester_id', in: 'query', required: false, description: 'Id автора. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
         ],
         responses: [
@@ -63,7 +64,8 @@ class TicketController extends SupportController
         $this->authorize('handle', Ticket::class);
 
         $base = Ticket::query()
-            ->when($request->query('tenant_id'), fn ($query, $tenantId) => $query->forTenant($tenantId));
+            ->when($request->filled('requester_type'), fn ($query) => $query->where('requester_type', $request->query('requester_type')))
+            ->when($request->filled('requester_id'), fn ($query) => $query->where('requester_id', $request->query('requester_id')));
 
         $page = (clone $base)
             ->with('category')
@@ -157,6 +159,7 @@ class TicketController extends SupportController
                 required: ['assignee_id'],
                 properties: [
                     new OA\Property(property: 'assignee_id', type: 'integer', example: 3),
+                    new OA\Property(property: 'assignee_type', type: 'string', example: 'user', description: 'Тип модели исполнителя. По умолчанию user.'),
                 ],
             ),
         ),
@@ -173,7 +176,10 @@ class TicketController extends SupportController
         $this->authorize('handle', Ticket::class);
 
         return $this->attempt(function () use ($request, $ticket) {
-            $assignee = $this->users->resolve($request->integer('assignee_id'));
+            $assignee = $this->users->resolve(
+                (string) $request->input('assignee_type', 'user'),
+                $request->integer('assignee_id'),
+            );
 
             if ($assignee === null) {
                 throw new InvalidArgumentException('Пользователь не найден.');

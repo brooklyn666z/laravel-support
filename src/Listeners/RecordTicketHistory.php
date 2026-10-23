@@ -137,6 +137,7 @@ class RecordTicketHistory
         ?array $meta = null,
     ): void {
         $ticket->events()->create([
+            'actor_type' => $actor->getSupportUserType(),
             'actor_id' => SupportIds::toInt($actor->getSupportUserId()),
             'type' => $type,
             'old_value' => $oldValue,

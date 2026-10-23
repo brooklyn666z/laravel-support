@@ -13,8 +13,9 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
         new OA\Property(property: 'number', type: 'string', example: 'SUP-2026-00001'),
-        new OA\Property(property: 'tenant_id', type: 'integer', nullable: true, example: 10),
+        new OA\Property(property: 'requester_type', type: 'string', example: 'user', description: 'Тип модели автора: user или agent'),
         new OA\Property(property: 'requester_id', type: 'integer', example: 7),
+        new OA\Property(property: 'assignee_type', type: 'string', nullable: true, example: 'user'),
         new OA\Property(property: 'assignee_id', type: 'integer', nullable: true, example: 3),
         new OA\Property(property: 'category_id', type: 'integer', nullable: true, example: 2),
         new OA\Property(
@@ -51,8 +52,9 @@ class TicketResource extends JsonResource
         return [
             'id' => $this->id,
             'number' => $this->number,
-            'tenant_id' => $this->tenant_id,
+            'requester_type' => $this->requester_type,
             'requester_id' => $this->requester_id,
+            'assignee_type' => $this->assignee_type,
             'assignee_id' => $this->assignee_id,
             'category_id' => $this->category_id,
             'category' => $this->whenLoaded('category', fn () => [

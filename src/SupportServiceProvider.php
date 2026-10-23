@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Fillindev\Support;
 
 use Fillindev\Support\Attachments\NullAttachmentStore;
+use Fillindev\Support\Broadcasting\SupportChannelAuthorization;
 use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Contracts\SupportNotificationGateway;
-use Fillindev\Support\Contracts\SupportTenantResolver;
 use Fillindev\Support\Contracts\SupportUserResolver;
 use Fillindev\Support\Listeners\BroadcastSupportRealtime;
 use Fillindev\Support\Listeners\RecordTicketHistory;
@@ -30,7 +30,6 @@ class SupportServiceProvider extends ServiceProvider
     {
         $map = [
             SupportUserResolver::class => 'support.bindings.user_resolver',
-            SupportTenantResolver::class => 'support.bindings.tenant_resolver',
             SupportNotificationGateway::class => 'support.bindings.notification_gateway',
         ];
 
@@ -62,6 +61,7 @@ class SupportServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        SupportChannelAuthorization::register();
         $this->app->make('events')->subscribe(RecordTicketHistory::class);
         $this->app->make('events')->subscribe(BroadcastSupportRealtime::class);
 

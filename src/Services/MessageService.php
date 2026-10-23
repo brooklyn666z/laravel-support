@@ -39,6 +39,7 @@ class MessageService
 
         return DB::transaction(function () use ($ticket, $author, $body, $internal): TicketMessage {
             $message = $ticket->messages()->create([
+                'author_type' => $author->getSupportUserType(),
                 'author_id' => SupportIds::toInt($author->getSupportUserId()),
                 'is_internal' => $internal,
                 'body' => $body,

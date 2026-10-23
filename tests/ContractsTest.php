@@ -19,9 +19,9 @@ class ContractsTest extends TestCase
         $this->app->make(SupportUserResolver::class);
     }
 
-    public function test_tenant_resolver_and_gateway_are_bound(): void
+    public function test_gateway_is_bound_without_tenant_resolver(): void
     {
-        $this->assertTrue($this->app->bound(SupportTenantResolver::class));
         $this->assertTrue($this->app->bound(SupportNotificationGateway::class));
+        $this->assertFalse($this->app->bound(SupportTenantResolver::class));
     }
 }

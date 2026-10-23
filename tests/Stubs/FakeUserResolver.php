@@ -9,8 +9,8 @@ use Fillindev\Support\Contracts\SupportUserResolver;
 
 final class FakeUserResolver implements SupportUserResolver
 {
-    public function resolve(int|string $id): ?SupportableUser
+    public function resolve(string $type, int|string $id): ?SupportableUser
     {
-        return new FakeUser((int) $id);
+        return new FakeUser((int) $id, type: $type);
     }
 }

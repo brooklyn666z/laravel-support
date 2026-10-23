@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('ticket_id')
                 ->constrained(SupportTables::name('tickets'))
                 ->cascadeOnDelete();
+            $table->string('author_type');
             $table->unsignedBigInteger('author_id');
             $table->boolean('is_internal')->default(false);
             $table->text('body');

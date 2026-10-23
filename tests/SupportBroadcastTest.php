@@ -11,8 +11,6 @@ use Fillindev\Support\Broadcasting\SupportTicketReadBroadcast;
 use Fillindev\Support\Routing\SupportRoutes;
 use Fillindev\Support\Tests\Stubs\FakeAttachmentStore;
 use Fillindev\Support\Tests\Stubs\FakeNotificationGateway;
-use Fillindev\Support\Tests\Stubs\FakeTenant;
-use Fillindev\Support\Tests\Stubs\FakeTenantResolver;
 use Fillindev\Support\Tests\Stubs\FakeUserResolver;
 use Fillindev\Support\Tests\Stubs\HttpActor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,7 +32,6 @@ class SupportBroadcastTest extends TestCase
         parent::setUp();
 
         Gate::before(fn () => true);
-        FakeTenantResolver::$current = new FakeTenant(15, 'Север');
         FakeAttachmentStore::reset();
     }
 
@@ -49,7 +46,6 @@ class SupportBroadcastTest extends TestCase
         ]);
         $app['config']->set('support.bindings', [
             'user_resolver' => FakeUserResolver::class,
-            'tenant_resolver' => FakeTenantResolver::class,
             'notification_gateway' => FakeNotificationGateway::class,
             'attachment_store' => FakeAttachmentStore::class,
         ]);
@@ -85,11 +81,11 @@ class SupportBroadcastTest extends TestCase
                 && $event->ticket['subject'] === 'Не открывается модуль'
                 && $event->ticket['body'] === 'Текст первого сообщения'
                 && ! array_key_exists('messages', $event->ticket)
+                && $event->ticket['requester_type'] === 'user'
                 && $event->broadcastAs() === 'support.ticket.updated'
                 && $this->channelNames($event->broadcastOn()) === [
-                    'private-support.ticket.'.$ticketId,
-                    'private-support.user.7',
-                    'private-support.queue',
+                    'private-support.lifecycle',
+                    'private-support.user.user.7',
                 ];
         });
 
@@ -99,10 +95,11 @@ class SupportBroadcastTest extends TestCase
                 && $event->message['body'] === 'Текст первого сообщения'
                 && $event->message['attachments'] === []
                 && $event->message['author']['id'] === 7
+                && $event->message['author']['type'] === 'user'
                 && $event->broadcastAs() === 'support.message.posted'
                 && $this->channelNames($event->broadcastOn()) === [
                     'private-support.ticket.'.$ticketId,
-                    'private-support.user.7',
+                    'private-support.user.user.7',
                     'private-support.queue',
                 ];
         });
@@ -141,7 +138,7 @@ class SupportBroadcastTest extends TestCase
                 && $event->message['attachments'][0]['file_name'] === 'note.txt'
                 && $this->channelNames($event->broadcastOn()) === [
                     'private-support.ticket.'.$ticketId,
-                    'private-support.user.7',
+                    'private-support.user.user.7',
                     'private-support.queue',
                 ];
         });
@@ -245,10 +242,50 @@ class SupportBroadcastTest extends TestCase
             ])
             ->assertOk();
 
-        Event::assertDispatched(SupportTicketBroadcast::class, function (SupportTicketBroadcast $event): bool {
+        Event::assertDispatched(SupportTicketBroadcast::class, function (SupportTicketBroadcast $event) use ($ticketId): bool {
             return $event->reason === SupportBroadcastReason::Priority
                 && $event->ticket['priority'] === 'urgent'
-                && $event->broadcastWith()['reason'] === 'priority';
+                && $event->broadcastWith()['reason'] === 'priority'
+                && $this->channelNames($event->broadcastOn()) === [
+                    'private-support.ticket.'.$ticketId,
+                    'private-support.user.user.7',
+                    'private-support.queue',
+                ];
+        });
+    }
+
+    public function test_status_change_goes_to_lifecycle_channel(): void
+    {
+        Event::fake([
+            SupportTicketBroadcast::class,
+            SupportMessageBroadcast::class,
+        ]);
+
+        $ticketId = (int) $this->actingAs(new HttpActor(id: 4, type: 'agent'))
+            ->postJson('/support/tickets', [
+                'subject' => 'Статус',
+                'body' => 'Текст',
+            ])
+            ->json('data.id');
+
+        Event::fake([
+            SupportTicketBroadcast::class,
+        ]);
+
+        $this->actingAs(new HttpActor(3))
+            ->postJson('/support/admin/tickets/'.$ticketId.'/status', [
+                'status' => 'in_progress',
+            ])
+            ->assertOk();
+
+        Event::assertDispatched(SupportTicketBroadcast::class, function (SupportTicketBroadcast $event) use ($ticketId): bool {
+            return $event->reason === SupportBroadcastReason::Status
+                && (int) $event->ticket['id'] === $ticketId
+                && $event->ticket['requester_type'] === 'agent'
+                && $this->channelNames($event->broadcastOn()) === [
+                    'private-support.lifecycle',
+                    'private-support.user.agent.4',
+                ];
         });
     }
 

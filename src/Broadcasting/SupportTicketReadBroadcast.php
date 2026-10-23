@@ -18,6 +18,7 @@ class SupportTicketReadBroadcast implements ShouldBroadcast
 
     public function __construct(
         public int $ticketId,
+        public string $requesterType,
         public int $requesterId,
         public string $by,
         public ?string $requesterLastReadAt,
@@ -31,7 +32,7 @@ class SupportTicketReadBroadcast implements ShouldBroadcast
     {
         return [
             new PrivateChannel(SupportChannels::ticket($this->ticketId)),
-            new PrivateChannel(SupportChannels::user($this->requesterId)),
+            new PrivateChannel(SupportChannels::user($this->requesterType, $this->requesterId)),
             new PrivateChannel(SupportChannels::QUEUE),
         ];
     }

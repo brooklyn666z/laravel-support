@@ -44,8 +44,9 @@ class MigrationsTest extends TestCase
 
         $this->assertTrue(Schema::hasColumns('support_tickets', [
             'number',
-            'tenant_id',
+            'requester_type',
             'requester_id',
+            'assignee_type',
             'assignee_id',
             'category_id',
             'subject',
@@ -55,14 +56,17 @@ class MigrationsTest extends TestCase
             'resolved_at',
             'closed_at',
         ]));
+        $this->assertFalse(Schema::hasColumn('support_tickets', 'tenant_id'));
         $this->assertTrue(Schema::hasColumns('support_ticket_messages', [
             'ticket_id',
+            'author_type',
             'author_id',
             'is_internal',
             'body',
         ]));
         $this->assertTrue(Schema::hasColumns('support_ticket_events', [
             'ticket_id',
+            'actor_type',
             'actor_id',
             'type',
             'old_value',
@@ -84,7 +88,7 @@ class MigrationsTest extends TestCase
 
         $ticketId = DB::table('support_tickets')->insertGetId([
             'number' => 'SUP-2026-00001',
-            'tenant_id' => 5,
+            'requester_type' => 'user',
             'requester_id' => 7,
             'category_id' => $categoryId,
             'subject' => 'Не открывается модуль',
@@ -96,6 +100,7 @@ class MigrationsTest extends TestCase
 
         DB::table('support_ticket_messages')->insert([
             'ticket_id' => $ticketId,
+            'author_type' => 'user',
             'author_id' => 7,
             'is_internal' => false,
             'body' => 'Текст обращения',
@@ -105,6 +110,7 @@ class MigrationsTest extends TestCase
 
         DB::table('support_ticket_events')->insert([
             'ticket_id' => $ticketId,
+            'actor_type' => 'user',
             'actor_id' => 7,
             'type' => 'created',
             'new_value' => TicketStatus::Open->value,

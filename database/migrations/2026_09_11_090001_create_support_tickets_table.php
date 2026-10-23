@@ -16,8 +16,9 @@ return new class extends Migration
         Schema::create(SupportTables::name('tickets'), function (Blueprint $table) {
             $table->id();
             $table->string('number')->unique();
-            $table->unsignedBigInteger('tenant_id')->nullable();
+            $table->string('requester_type');
             $table->unsignedBigInteger('requester_id');
+            $table->string('assignee_type')->nullable();
             $table->unsignedBigInteger('assignee_id')->nullable();
             $table->foreignId('category_id')
                 ->nullable()
@@ -31,7 +32,7 @@ return new class extends Migration
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
 
-            $table->index(['tenant_id', 'status']);
+            $table->index(['requester_type', 'requester_id']);
             $table->index(['assignee_id', 'status']);
             $table->index('requester_id');
             $table->index('created_at');

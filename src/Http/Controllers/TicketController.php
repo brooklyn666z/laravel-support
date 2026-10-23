@@ -6,7 +6,6 @@ namespace Fillindev\Support\Http\Controllers;
 
 use Fillindev\Support\Broadcasting\SupportRealtime;
 use Fillindev\Support\Contracts\SupportAttachmentStore;
-use Fillindev\Support\Contracts\SupportTenantResolver;
 use Fillindev\Support\Enums\TicketPriority;
 use Fillindev\Support\Http\Requests\StoreMessageRequest;
 use Fillindev\Support\Http\Requests\StoreTicketRequest;
@@ -21,7 +20,7 @@ use OpenApi\Attributes as OA;
 
 #[OA\Tag(
     name: 'Support Tickets',
-    description: 'Обращения клиента в техподдержку. Видны только свои тикеты текущего аккаунта. super admin проходит без этой проверки.',
+    description: 'Обращения клиента в техподдержку. Видны только свои тикеты. super admin проходит без этой проверки.',
 )]
 class TicketController extends SupportController
 {
@@ -29,7 +28,6 @@ class TicketController extends SupportController
         TicketPresenter $presenter,
         private readonly TicketService $tickets,
         private readonly MessageService $messages,
-        private readonly SupportTenantResolver $tenants,
         private readonly SupportAttachmentStore $attachments,
         private readonly SupportRealtime $realtime,
     ) {
@@ -53,7 +51,7 @@ class TicketController extends SupportController
                 ),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Пользователь не относится к текущему аккаунту'),
+            new OA\Response(response: 403, description: 'Нет доступа'),
         ],
     )]
     public function categories(): JsonResponse
@@ -69,7 +67,7 @@ class TicketController extends SupportController
         path: '/support/tickets',
         tags: ['Support Tickets'],
         summary: 'Список своих обращений',
-        description: 'По 15 записей. В элементах нет messages. summary считает все свои обращения аккаунта, страница на него не влияет.',
+        description: 'По 15 записей. В элементах нет messages. summary считает все свои обращения, страница на него не влияет.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
@@ -77,7 +75,7 @@ class TicketController extends SupportController
         responses: [
             new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketPage')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Пользователь не относится к текущему аккаунту'),
+            new OA\Response(response: 403, description: 'Нет доступа'),
         ],
     )]
     public function index(): JsonResponse
@@ -109,7 +107,7 @@ class TicketController extends SupportController
         responses: [
             new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Пользователь не относится к текущему аккаунту'),
+            new OA\Response(response: 403, description: 'Нет доступа'),
             new OA\Response(ref: '#/components/responses/SupportUnprocessable', response: 422),
         ],
     )]
@@ -124,7 +122,6 @@ class TicketController extends SupportController
                 requester: $this->actor(),
                 subject: $request->validated('subject'),
                 body: $request->validated('body'),
-                tenant: $this->tenants->current(),
                 categoryId: $categoryId === null ? null : (int) $categoryId,
                 priority: $request->enum('priority', TicketPriority::class) ?? TicketPriority::Normal,
             );
@@ -151,7 +148,7 @@ class TicketController extends SupportController
         responses: [
             new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Чужое обращение или другой аккаунт'),
+            new OA\Response(response: 403, description: 'Чужое обращение'),
             new OA\Response(response: 404, description: 'Не найдено'),
         ],
     )]
@@ -183,7 +180,7 @@ class TicketController extends SupportController
         responses: [
             new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Чужое обращение или другой аккаунт'),
+            new OA\Response(response: 403, description: 'Чужое обращение'),
             new OA\Response(response: 404, description: 'Не найдено'),
             new OA\Response(ref: '#/components/responses/SupportUnprocessable', response: 422),
         ],
@@ -214,7 +211,7 @@ class TicketController extends SupportController
         responses: [
             new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
             new OA\Response(response: 401, description: 'Unauthorized'),
-            new OA\Response(response: 403, description: 'Чужое обращение или другой аккаунт'),
+            new OA\Response(response: 403, description: 'Чужое обращение'),
             new OA\Response(response: 404, description: 'Не найдено'),
             new OA\Response(ref: '#/components/responses/SupportUnprocessable', response: 422),
         ],
@@ -236,11 +233,9 @@ class TicketController extends SupportController
      */
     private function ownTickets()
     {
-        $tenant = $this->tenants->current();
+        $actor = $this->actor();
 
-        return Ticket::query()
-            ->forTenant($tenant?->getSupportTenantId())
-            ->forRequester($this->actor()->getSupportUserId());
+        return Ticket::query()->forRequester($actor->getSupportUserType(), $actor->getSupportUserId());
     }
 
     private function ownTicket(int $ticketId): Ticket

@@ -20,6 +20,7 @@ final class HttpActor implements AuthenticatableContract, SupportableUser
         private readonly int $id = 7,
         private readonly string $name = 'Клиент',
         private readonly ?string $email = 'client@example.com',
+        private readonly string $type = 'user',
     ) {}
 
     public function getAuthIdentifierName(): string
@@ -30,6 +31,11 @@ final class HttpActor implements AuthenticatableContract, SupportableUser
     public function getAuthIdentifier(): int
     {
         return $this->id;
+    }
+
+    public function getSupportUserType(): string
+    {
+        return $this->type;
     }
 
     public function getSupportUserId(): int|string

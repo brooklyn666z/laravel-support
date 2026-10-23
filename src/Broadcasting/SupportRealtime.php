@@ -18,6 +18,7 @@ final class SupportRealtime
     {
         Event::dispatch(new SupportMessageBroadcast(
             ticketId: (int) $ticket->id,
+            requesterType: (string) $ticket->requester_type,
             requesterId: (int) $ticket->requester_id,
             internal: (bool) $message->is_internal,
             message: $this->payload->message($message),
@@ -36,6 +37,7 @@ final class SupportRealtime
     {
         Event::dispatch(new SupportTicketReadBroadcast(
             ticketId: (int) $ticket->id,
+            requesterType: (string) $ticket->requester_type,
             requesterId: (int) $ticket->requester_id,
             by: $byAgent ? 'agent' : 'requester',
             requesterLastReadAt: $ticket->requester_last_read_at?->toISOString(),

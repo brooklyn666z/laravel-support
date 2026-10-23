@@ -22,6 +22,7 @@ class SupportMessageBroadcast implements ShouldBroadcast
      */
     public function __construct(
         public int $ticketId,
+        public string $requesterType,
         public int $requesterId,
         public bool $internal,
         public array $message,
@@ -41,7 +42,7 @@ class SupportMessageBroadcast implements ShouldBroadcast
 
         return [
             new PrivateChannel(SupportChannels::ticket($this->ticketId)),
-            new PrivateChannel(SupportChannels::user($this->requesterId)),
+            new PrivateChannel(SupportChannels::user($this->requesterType, $this->requesterId)),
             new PrivateChannel(SupportChannels::QUEUE),
         ];
     }

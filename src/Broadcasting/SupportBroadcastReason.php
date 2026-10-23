@@ -13,4 +13,15 @@ enum SupportBroadcastReason: string
     case Category = 'category';
     case Closed = 'closed';
     case Reopened = 'reopened';
+
+    /**
+     * Создание и любая смена статуса, включая закрытие и переоткрытие.
+     */
+    public function isLifecycle(): bool
+    {
+        return match ($this) {
+            self::Created, self::Status, self::Closed, self::Reopened => true,
+            default => false,
+        };
+    }
 }

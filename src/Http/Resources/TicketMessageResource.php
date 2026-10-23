@@ -13,12 +13,14 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
         new OA\Property(property: 'ticket_id', type: 'integer', example: 1),
+        new OA\Property(property: 'author_type', type: 'string', example: 'user'),
         new OA\Property(property: 'author_id', type: 'integer', example: 7),
         new OA\Property(
             property: 'author',
             type: 'object',
             nullable: true,
             properties: [
+                new OA\Property(property: 'type', type: 'string', example: 'user'),
                 new OA\Property(property: 'id', type: 'integer', example: 7),
                 new OA\Property(property: 'name', type: 'string', example: 'Иван Иванов'),
                 new OA\Property(property: 'email', type: 'string', example: 'ivan@example.com'),
@@ -53,6 +55,7 @@ class TicketMessageResource extends JsonResource
         return [
             'id' => $this->id,
             'ticket_id' => $this->ticket_id,
+            'author_type' => $this->author_type,
             'author_id' => $this->author_id,
             'author' => $this->resource->getAttribute('author_payload'),
             'is_internal' => $this->is_internal,

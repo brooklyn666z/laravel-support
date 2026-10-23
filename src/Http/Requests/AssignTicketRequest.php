@@ -20,6 +20,7 @@ class AssignTicketRequest extends FormRequest
     {
         return [
             'assignee_id' => ['required', 'integer'],
+            'assignee_type' => ['sometimes', 'string', 'regex:/^[A-Za-z0-9_-]+$/'],
         ];
     }
 }

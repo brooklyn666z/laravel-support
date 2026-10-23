@@ -12,8 +12,6 @@ use Fillindev\Support\Routing\SupportRoutes;
 use Fillindev\Support\Services\TicketService;
 use Fillindev\Support\Tests\Stubs\FakeAttachmentStore;
 use Fillindev\Support\Tests\Stubs\FakeNotificationGateway;
-use Fillindev\Support\Tests\Stubs\FakeTenant;
-use Fillindev\Support\Tests\Stubs\FakeTenantResolver;
 use Fillindev\Support\Tests\Stubs\FakeUserResolver;
 use Fillindev\Support\Tests\Stubs\HttpActor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,7 +33,6 @@ class SupportHttpTest extends TestCase
         parent::setUp();
 
         Gate::before(fn () => true);
-        FakeTenantResolver::$current = null;
         FakeAttachmentStore::reset();
     }
 
@@ -50,7 +47,6 @@ class SupportHttpTest extends TestCase
         ]);
         $app['config']->set('support.bindings', [
             'user_resolver' => FakeUserResolver::class,
-            'tenant_resolver' => FakeTenantResolver::class,
             'notification_gateway' => FakeNotificationGateway::class,
             'attachment_store' => FakeAttachmentStore::class,
         ]);
@@ -99,50 +95,36 @@ class SupportHttpTest extends TestCase
         $this->assertNotContains('support/tickets/{ticket}/priority', $uris);
     }
 
-    public function test_create_stores_tenant_id_when_resolver_returns_tenant(): void
+    public function test_create_stores_requester_type(): void
     {
-        FakeTenantResolver::$current = new FakeTenant(15, 'Север');
-
-        $response = $this->actingAs(new HttpActor(7))
+        $response = $this->actingAs(new HttpActor(id: 7, type: 'agent'))
             ->postJson('/support/tickets', [
                 'subject' => 'Не открывается модуль',
                 'body' => 'Текст первого сообщения',
             ]);
 
         $response->assertCreated();
-        $response->assertJsonPath('data.tenant_id', 15);
+        $response->assertJsonPath('data.requester_type', 'agent');
         $response->assertJsonPath('data.requester_id', 7);
         $response->assertJsonPath('data.body', 'Текст первого сообщения');
+        $response->assertJsonMissingPath('data.tenant_id');
 
-        $this->assertSame(15, Ticket::query()->firstOrFail()->tenant_id);
-    }
-
-    public function test_create_without_tenant_when_resolver_returns_null(): void
-    {
-        FakeTenantResolver::$current = null;
-
-        $response = $this->actingAs(new HttpActor(7))
-            ->postJson('/support/tickets', [
-                'subject' => 'Без тенанта',
-                'body' => 'Сообщение',
-            ]);
-
-        $response->assertCreated();
-        $response->assertJsonPath('data.tenant_id', null);
-        $this->assertNull(Ticket::query()->firstOrFail()->tenant_id);
+        $ticket = Ticket::query()->firstOrFail();
+        $this->assertSame('agent', $ticket->requester_type);
+        $this->assertSame(7, $ticket->requester_id);
     }
 
     public function test_index_and_show_include_body_and_summary(): void
     {
-        FakeTenantResolver::$current = new FakeTenant(15, 'Север');
         $actor = new HttpActor(7);
         $tickets = $this->app->make(TicketService::class);
 
-        $open = $tickets->create($actor, 'Первый', 'Текст открытия', FakeTenantResolver::$current);
-        $closed = $tickets->create($actor, 'Второй', 'Уже закрыт', FakeTenantResolver::$current);
+        $open = $tickets->create($actor, 'Первый', 'Текст открытия');
+        $closed = $tickets->create($actor, 'Второй', 'Уже закрыт');
         $tickets->close($closed, $actor);
 
-        $other = $tickets->create(new HttpActor(8), 'Чужой', 'Не мой', new FakeTenant(99, 'Другой'));
+        $other = $tickets->create(new HttpActor(8), 'Чужой', 'Не мой');
+        $sameIdOtherType = $tickets->create(new HttpActor(id: 7, type: 'agent'), 'Агент', 'Текст агента');
 
         $index = $this->actingAs($actor)->getJson('/support/tickets');
         $index->assertOk();
@@ -158,6 +140,7 @@ class SupportHttpTest extends TestCase
         $this->assertSame('Текст открытия', $bodies[$open->id]);
         $this->assertSame('Уже закрыт', $bodies[$closed->id]);
         $this->assertArrayNotHasKey($other->id, $bodies->all());
+        $this->assertArrayNotHasKey($sameIdOtherType->id, $bodies->all());
         $this->assertArrayNotHasKey('messages', $index->json('data.0'));
 
         $show = $this->actingAs($actor)->getJson('/support/tickets/'.$open->id);
@@ -170,11 +153,10 @@ class SupportHttpTest extends TestCase
 
     public function test_admin_summary_ignores_status_filter(): void
     {
-        FakeTenantResolver::$current = new FakeTenant(15, 'Север');
         $actor = new HttpActor(7);
         $tickets = $this->app->make(TicketService::class);
-        $tickets->create($actor, 'Открытый', 'Открытый текст', FakeTenantResolver::$current);
-        $closed = $tickets->create($actor, 'Закрытый', 'Закрытый текст', FakeTenantResolver::$current);
+        $tickets->create($actor, 'Открытый', 'Открытый текст');
+        $closed = $tickets->create($actor, 'Закрытый', 'Закрытый текст');
         $tickets->close($closed, $actor);
 
         $response = $this->actingAs($actor)->getJson('/support/admin/tickets?status=open');
@@ -213,13 +195,11 @@ class SupportHttpTest extends TestCase
 
     public function test_message_with_file_returns_attachments_and_author(): void
     {
-        FakeTenantResolver::$current = new FakeTenant(15, 'Север');
         $actor = new HttpActor(7);
         $ticket = $this->app->make(TicketService::class)->create(
             $actor,
             'Вложение',
             'Первое',
-            FakeTenantResolver::$current,
         );
 
         $response = $this->actingAs($actor)->post(
@@ -241,6 +221,7 @@ class SupportHttpTest extends TestCase
         $response->assertJsonPath('data.messages.1.attachments.0.mime_type', 'text/plain');
         $response->assertJsonPath('data.messages.1.attachments.0.url', '/storage/note.txt');
         $response->assertJsonPath('data.messages.1.author', [
+            'type' => 'user',
             'id' => 7,
             'name' => 'Иван',
             'email' => 'ivan@example.com',

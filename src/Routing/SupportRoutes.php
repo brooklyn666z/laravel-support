@@ -16,13 +16,26 @@ final class SupportRoutes
 {
     public static function register(): void
     {
-        Route::get('support/categories', [TicketController::class, 'categories'])->name('support.categories');
-        Route::get('support/tickets', [TicketController::class, 'index'])->name('support.tickets.index');
-        Route::post('support/tickets', [TicketController::class, 'store'])->name('support.tickets.store');
-        Route::get('support/tickets/{ticket}', [TicketController::class, 'show'])->name('support.tickets.show');
-        Route::post('support/tickets/{ticket}/messages', [TicketController::class, 'storeMessage'])->name('support.tickets.messages.store');
-        Route::post('support/tickets/{ticket}/close', [TicketController::class, 'close'])->name('support.tickets.close');
+        self::client();
+        self::admin();
+    }
 
+    /**
+     * Клиентские маршруты. $namePrefix нужен, когда хост регистрирует их повторно
+     * для другой модели пользователя, например агента.
+     */
+    public static function client(string $namePrefix = 'support.'): void
+    {
+        Route::get('support/categories', [TicketController::class, 'categories'])->name($namePrefix.'categories');
+        Route::get('support/tickets', [TicketController::class, 'index'])->name($namePrefix.'tickets.index');
+        Route::post('support/tickets', [TicketController::class, 'store'])->name($namePrefix.'tickets.store');
+        Route::get('support/tickets/{ticket}', [TicketController::class, 'show'])->name($namePrefix.'tickets.show');
+        Route::post('support/tickets/{ticket}/messages', [TicketController::class, 'storeMessage'])->name($namePrefix.'tickets.messages.store');
+        Route::post('support/tickets/{ticket}/close', [TicketController::class, 'close'])->name($namePrefix.'tickets.close');
+    }
+
+    public static function admin(): void
+    {
         Route::get('support/admin/tickets', [AdminTicketController::class, 'index'])->name('support.admin.tickets.index');
         Route::get('support/admin/tickets/{ticket}', [AdminTicketController::class, 'show'])->name('support.admin.tickets.show');
         Route::post('support/admin/tickets/{ticket}/messages', [AdminTicketController::class, 'storeMessage'])->name('support.admin.tickets.messages.store');

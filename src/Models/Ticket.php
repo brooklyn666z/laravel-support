@@ -16,8 +16,9 @@ class Ticket extends Model
 {
     protected $fillable = [
         'number',
-        'tenant_id',
+        'requester_type',
         'requester_id',
+        'assignee_type',
         'assignee_id',
         'category_id',
         'subject',
@@ -41,7 +42,6 @@ class Ticket extends Model
     protected function casts(): array
     {
         return [
-            'tenant_id' => 'integer',
             'requester_id' => 'integer',
             'assignee_id' => 'integer',
             'category_id' => 'integer',
@@ -83,17 +83,10 @@ class Ticket extends Model
      * @param  Builder<Ticket>  $query
      * @return Builder<Ticket>
      */
-    public function scopeForTenant(Builder $query, int|string|null $tenantId): Builder
+    public function scopeForRequester(Builder $query, string $type, int|string $requesterId): Builder
     {
-        return $query->where('tenant_id', $tenantId);
-    }
-
-    /**
-     * @param  Builder<Ticket>  $query
-     * @return Builder<Ticket>
-     */
-    public function scopeForRequester(Builder $query, int|string $requesterId): Builder
-    {
-        return $query->where('requester_id', $requesterId);
+        return $query
+            ->where('requester_type', $type)
+            ->where('requester_id', $requesterId);
     }
 }

@@ -13,6 +13,7 @@ class TicketMessage extends Model
 {
     protected $fillable = [
         'ticket_id',
+        'author_type',
         'author_id',
         'is_internal',
         'body',
