@@ -247,6 +247,45 @@ class SupportBroadcastTest extends TestCase
                 && $event->ticket['priority'] === 'urgent'
                 && $event->broadcastWith()['reason'] === 'priority'
                 && $this->channelNames($event->broadcastOn()) === [
+                    'private-support.lifecycle',
+                    'private-support.ticket.'.$ticketId,
+                    'private-support.user.user.7',
+                    'private-support.queue',
+                ];
+        });
+    }
+
+    public function test_assign_broadcasts_ticket_update_on_lifecycle(): void
+    {
+        Event::fake([
+            SupportTicketBroadcast::class,
+            SupportMessageBroadcast::class,
+        ]);
+
+        $ticketId = (int) $this->actingAs(new HttpActor(7))
+            ->postJson('/support/tickets', [
+                'subject' => 'Назначение',
+                'body' => 'Текст',
+            ])
+            ->json('data.id');
+
+        Event::fake([
+            SupportTicketBroadcast::class,
+        ]);
+
+        $this->actingAs(new HttpActor(3))
+            ->postJson('/support/admin/tickets/'.$ticketId.'/assign', [
+                'assignee_id' => 3,
+            ])
+            ->assertOk();
+
+        Event::assertDispatched(SupportTicketBroadcast::class, function (SupportTicketBroadcast $event) use ($ticketId): bool {
+            return $event->reason === SupportBroadcastReason::Assigned
+                && (int) $event->ticket['id'] === $ticketId
+                && (int) $event->ticket['assignee_id'] === 3
+                && $event->broadcastWith()['reason'] === 'assigned'
+                && $this->channelNames($event->broadcastOn()) === [
+                    'private-support.lifecycle',
                     'private-support.ticket.'.$ticketId,
                     'private-support.user.user.7',
                     'private-support.queue',

@@ -16,11 +16,23 @@ enum SupportBroadcastReason: string
 
     /**
      * Создание и любая смена статуса, включая закрытие и переоткрытие.
+     * Эти причины идут только в support.lifecycle и личный канал автора.
      */
     public function isLifecycle(): bool
     {
         return match ($this) {
             self::Created, self::Status, self::Closed, self::Reopened => true,
+            default => false,
+        };
+    }
+
+    /**
+     * Приоритет и назначение оператора дополнительно приходят в support.lifecycle.
+     */
+    public function alsoOnLifecycle(): bool
+    {
+        return match ($this) {
+            self::Priority, self::Assigned => true,
             default => false,
         };
     }

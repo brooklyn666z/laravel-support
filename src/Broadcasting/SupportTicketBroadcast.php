@@ -11,8 +11,9 @@ use Illuminate\Foundation\Events\Dispatchable;
 
 /**
  * Изменение тикета.
- * Создание и смена статуса (включая закрытие и переоткрытие) идут в support.lifecycle.
- * Назначение, приоритет и категория остаются на карточке, у автора и в очереди.
+ * Создание и смена статуса идут в support.lifecycle и личный канал автора.
+ * Смена приоритета и назначение оператора тоже приходят в support.lifecycle и остаются на карточке, у автора и в очереди.
+ * Категория — на карточке, у автора и в очереди.
  */
 class SupportTicketBroadcast implements ShouldBroadcast
 {
@@ -43,11 +44,17 @@ class SupportTicketBroadcast implements ShouldBroadcast
             ];
         }
 
-        return [
+        $channels = [
             new PrivateChannel(SupportChannels::ticket((int) $this->ticket['id'])),
             $requester,
             new PrivateChannel(SupportChannels::QUEUE),
         ];
+
+        if ($this->reason->alsoOnLifecycle()) {
+            array_unshift($channels, new PrivateChannel(SupportChannels::LIFECYCLE));
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string
