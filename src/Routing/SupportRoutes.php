@@ -33,6 +33,7 @@ final class SupportRoutes
         Route::get('support/tickets/{ticket}', [TicketController::class, 'show'])->whereNumber('ticket')->name($namePrefix.'tickets.show');
         Route::post('support/tickets/{ticket}/messages', [TicketController::class, 'storeMessage'])->whereNumber('ticket')->name($namePrefix.'tickets.messages.store');
         Route::post('support/tickets/{ticket}/close', [TicketController::class, 'close'])->whereNumber('ticket')->name($namePrefix.'tickets.close');
+        Route::post('support/messages/{message}/read', [TicketController::class, 'readMessage'])->whereNumber('message')->name($namePrefix.'messages.read');
     }
 
     public static function admin(): void

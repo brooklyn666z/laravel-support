@@ -8,6 +8,9 @@ use Fillindev\Support\Broadcasting\SupportBroadcastReason;
 use Fillindev\Support\Broadcasting\SupportMessageBroadcast;
 use Fillindev\Support\Broadcasting\SupportTicketBroadcast;
 use Fillindev\Support\Broadcasting\SupportTicketReadBroadcast;
+use Fillindev\Support\Broadcasting\SupportUnreadBroadcast;
+use Fillindev\Support\Services\MessageService;
+use Fillindev\Support\Services\TicketService;
 use Fillindev\Support\Routing\SupportRoutes;
 use Fillindev\Support\Tests\Stubs\FakeAttachmentStore;
 use Fillindev\Support\Tests\Stubs\FakeNotificationGateway;
@@ -44,6 +47,11 @@ class SupportBroadcastTest extends TestCase
             'prefix' => '',
             'foreign_key_constraints' => true,
         ]);
+        $app['config']->set('broadcasting.default', 'null');
+        $app['config']->set('broadcasting.connections.null', [
+            'driver' => 'null',
+        ]);
+        $app['config']->set('queue.default', 'sync');
         $app['config']->set('support.bindings', [
             'user_resolver' => FakeUserResolver::class,
             'notification_gateway' => FakeNotificationGateway::class,
@@ -326,6 +334,68 @@ class SupportBroadcastTest extends TestCase
                     'private-support.user.agent.4',
                 ];
         });
+    }
+
+    public function test_read_message_broadcasts_read_and_unread_counts(): void
+    {
+        Event::fake([
+            SupportMessageBroadcast::class,
+            SupportTicketBroadcast::class,
+            SupportTicketReadBroadcast::class,
+            SupportUnreadBroadcast::class,
+        ]);
+
+        $client = new HttpActor(7);
+        $operator = new HttpActor(3, 'Оператор', 'operator@example.com');
+        $tickets = $this->app->make(TicketService::class);
+        $messages = $this->app->make(MessageService::class);
+
+        $ticket = $tickets->create($client, 'Прочтение', 'Моё сообщение');
+        $reply = $messages->post($ticket, $operator, 'Ответ');
+
+        $this->assertNotNull($ticket->refresh()->requester_last_message_at);
+        $this->assertNotNull($ticket->agent_last_message_at);
+
+        Event::fake([
+            SupportTicketReadBroadcast::class,
+            SupportUnreadBroadcast::class,
+        ]);
+
+        $this->actingAs($client)
+            ->postJson('/support/messages/'.$reply->id.'/read')
+            ->assertOk()
+            ->assertJsonPath('data.message_id', $reply->id)
+            ->assertJsonPath('data.by', 'requester');
+
+        Event::assertDispatched(SupportTicketReadBroadcast::class, function (SupportTicketReadBroadcast $event) use ($ticket, $reply): bool {
+            return $event->messageId === $reply->id
+                && $event->by === 'requester'
+                && $event->ticketId === (int) $ticket->id
+                && $event->broadcastAs() === 'support.ticket.read'
+                && $this->channelNames($event->broadcastOn()) === [
+                    'private-support.ticket.'.$ticket->id,
+                    'private-support.user.user.7',
+                    'private-support.queue',
+                ];
+        });
+
+        Event::assertDispatched(SupportUnreadBroadcast::class, function (SupportUnreadBroadcast $event) use ($ticket): bool {
+            return $event->ticketId === (int) $ticket->id
+                && $event->requester === ['messages' => 0, 'tickets' => 0]
+                && $event->broadcastAs() === 'support.unread.updated'
+                && $this->channelNames($event->broadcastOn()) === [
+                    'private-support.ticket.'.$ticket->id,
+                    'private-support.user.user.7',
+                    'private-support.queue',
+                ];
+        });
+
+        $openingId = (int) $ticket->messages()->oldest('id')->value('id');
+
+        $this->actingAs($operator)
+            ->postJson('/support/messages/'.$openingId.'/read')
+            ->assertOk()
+            ->assertJsonPath('data.by', 'agent');
     }
 
     /**

@@ -49,6 +49,8 @@ class MessageService
                 $ticket->update(['last_replied_at' => now()]);
             }
 
+            $ticket->rememberPartyMessageAt($message);
+
             $this->events->dispatch(new MessagePosted($ticket, $message, $author));
 
             return $message->refresh();

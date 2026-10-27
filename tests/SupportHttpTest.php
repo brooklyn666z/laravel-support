@@ -84,6 +84,7 @@ class SupportHttpTest extends TestCase
             'support/tickets/{ticket}',
             'support/tickets/{ticket}/messages',
             'support/tickets/{ticket}/close',
+            'support/messages/{message}/read',
             'support/admin/tickets',
             'support/admin/tickets/{ticket}',
             'support/admin/tickets/{ticket}/messages',

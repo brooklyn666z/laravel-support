@@ -33,13 +33,33 @@ final class SupportRealtime
         ));
     }
 
-    public function read(Ticket $ticket, bool $byAgent): void
+    public function read(Ticket $ticket, bool $byAgent, ?int $messageId = null): void
     {
         Event::dispatch(new SupportTicketReadBroadcast(
             ticketId: (int) $ticket->id,
             requesterType: (string) $ticket->requester_type,
             requesterId: (int) $ticket->requester_id,
             by: $byAgent ? 'agent' : 'requester',
+            requesterLastReadAt: $ticket->requester_last_read_at?->toISOString(),
+            agentLastReadAt: $ticket->agent_last_read_at?->toISOString(),
+            messageId: $messageId,
+        ));
+    }
+
+    /**
+     * @param  array{messages: int, tickets: int}  $requester
+     * @param  array{messages: int, tickets: int}  $agent
+     */
+    public function unread(Ticket $ticket, array $requester, array $agent): void
+    {
+        Event::dispatch(new SupportUnreadBroadcast(
+            ticketId: (int) $ticket->id,
+            requesterType: (string) $ticket->requester_type,
+            requesterId: (int) $ticket->requester_id,
+            requester: $requester,
+            agent: $agent,
+            requesterLastMessageAt: $ticket->requester_last_message_at?->toISOString(),
+            agentLastMessageAt: $ticket->agent_last_message_at?->toISOString(),
             requesterLastReadAt: $ticket->requester_last_read_at?->toISOString(),
             agentLastReadAt: $ticket->agent_last_read_at?->toISOString(),
         ));

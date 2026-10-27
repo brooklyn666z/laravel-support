@@ -11,5 +11,6 @@ final class TicketRead
     public function __construct(
         public Ticket $ticket,
         public bool $byAgent,
+        public ?int $messageId = null,
     ) {}
 }

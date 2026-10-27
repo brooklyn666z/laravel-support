@@ -13,6 +13,7 @@ use Fillindev\Support\Http\Resources\TicketResource;
 use Fillindev\Support\Http\TicketPresenter;
 use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketCategory;
+use Fillindev\Support\Models\TicketMessage;
 use Fillindev\Support\Services\MessageService;
 use Fillindev\Support\Services\TicketService;
 use Illuminate\Http\JsonResponse;
@@ -130,6 +131,73 @@ class TicketController extends SupportController
 
         return response()->json([
             'data' => $data,
+        ]);
+    }
+
+    #[OA\Post(
+        path: '/support/messages/{message}/read',
+        tags: ['Support Tickets'],
+        summary: 'Отметить сообщение прочитанным',
+        description: 'Клиент отмечает публичный ответ поддержки. Оператор отмечает сообщение автора обращения. Курсор прочтения сдвигается на время этого сообщения, если оно новее. В сокет уходит support.ticket.read и support.unread.updated.',
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'message', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'OK'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Нет доступа'),
+            new OA\Response(response: 404, description: 'Не найдено'),
+        ],
+    )]
+    public function readMessage(int $message): JsonResponse
+    {
+        $this->authorize('viewAny', Ticket::class);
+
+        $record = TicketMessage::query()->find($message);
+        if (! $record instanceof TicketMessage || $record->ticket === null) {
+            abort(404);
+        }
+
+        $ticket = $record->ticket;
+        $actor = $this->actor();
+        $isRequester = $actor->getSupportUserType() === (string) $ticket->requester_type
+            && (string) $actor->getSupportUserId() === (string) $ticket->requester_id;
+        $canHandle = Gate::forUser($actor)->allows('handle', Ticket::class);
+
+        if ($record->is_internal && ! $canHandle) {
+            abort(404);
+        }
+
+        $fromRequester = (string) $record->author_type === (string) $ticket->requester_type
+            && (string) $record->author_id === (string) $ticket->requester_id;
+
+        if ($fromRequester) {
+            if (! $canHandle) {
+                abort(403);
+            }
+
+            $byAgent = true;
+        } elseif ($isRequester) {
+            $byAgent = false;
+        } elseif ($canHandle) {
+            $byAgent = true;
+        } else {
+            abort(403);
+        }
+
+        $ticket = $this->tickets->markMessageRead($ticket, $record, $byAgent);
+
+        return response()->json([
+            'data' => [
+                'message_id' => $record->id,
+                'ticket_id' => $ticket->id,
+                'by' => $byAgent ? 'agent' : 'requester',
+                'requester_last_read_at' => $ticket->requester_last_read_at,
+                'agent_last_read_at' => $ticket->agent_last_read_at,
+                'requester_last_message_at' => $ticket->requester_last_message_at,
+                'agent_last_message_at' => $ticket->agent_last_message_at,
+            ],
         ]);
     }
 

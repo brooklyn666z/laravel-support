@@ -23,6 +23,7 @@ class SupportTicketReadBroadcast implements ShouldBroadcast
         public string $by,
         public ?string $requesterLastReadAt,
         public ?string $agentLastReadAt,
+        public ?int $messageId = null,
     ) {}
 
     /**
@@ -49,6 +50,7 @@ class SupportTicketReadBroadcast implements ShouldBroadcast
     {
         return [
             'ticket_id' => $this->ticketId,
+            'message_id' => $this->messageId,
             'by' => $this->by,
             'requester_last_read_at' => $this->requesterLastReadAt,
             'agent_last_read_at' => $this->agentLastReadAt,

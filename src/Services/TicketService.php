@@ -73,6 +73,8 @@ class TicketService
                 'body' => $body,
             ]);
 
+            $ticket->rememberPartyMessageAt($message);
+
             $this->events->dispatch(new TicketCreated($ticket, $message, $requester));
 
             return $ticket->refresh();
@@ -174,14 +176,25 @@ class TicketService
      */
     public function unreadFor(SupportableUser $requester): array
     {
+        return $this->unreadForRequester(
+            $requester->getSupportUserType(),
+            SupportIds::toInt($requester->getSupportUserId()),
+        );
+    }
+
+    /**
+     * @return array{messages: int, tickets: int}
+     */
+    public function unreadForRequester(string $type, int $requesterId): array
+    {
         $messages = SupportTables::name('ticket_messages');
         $tickets = SupportTables::name('tickets');
 
         $query = TicketMessage::query()
             ->public()
             ->join($tickets, $tickets.'.id', '=', $messages.'.ticket_id')
-            ->where($tickets.'.requester_type', $requester->getSupportUserType())
-            ->where($tickets.'.requester_id', SupportIds::toInt($requester->getSupportUserId()))
+            ->where($tickets.'.requester_type', $type)
+            ->where($tickets.'.requester_id', $requesterId)
             ->where(function ($query) use ($messages, $tickets): void {
                 $query->whereNull($tickets.'.requester_last_read_at')
                     ->orWhereColumn($messages.'.created_at', '>', $tickets.'.requester_last_read_at');
@@ -248,6 +261,26 @@ class TicketService
         $ticket->update([$column => $latest->created_at]);
         $ticket = $ticket->refresh();
         $this->events->dispatch(new TicketRead($ticket, $byAgent));
+
+        return $ticket;
+    }
+
+    /**
+     * Ставит курсор прочтения на время этого сообщения, если оно новее текущего.
+     * Событие уходит в сокет даже когда курсор уже дальше: фронт явно отметил сообщение.
+     */
+    public function markMessageRead(Ticket $ticket, TicketMessage $message, bool $byAgent): Ticket
+    {
+        $column = $byAgent ? 'agent_last_read_at' : 'requester_last_read_at';
+        $current = $ticket->{$column};
+        $at = $message->created_at;
+
+        if ($current === null || $at->greaterThan($current)) {
+            $ticket->update([$column => $at]);
+            $ticket = $ticket->refresh();
+        }
+
+        $this->events->dispatch(new TicketRead($ticket, $byAgent, (int) $message->id));
 
         return $ticket;
     }

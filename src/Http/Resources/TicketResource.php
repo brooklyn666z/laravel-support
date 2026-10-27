@@ -37,6 +37,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'closed_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'requester_last_read_at', type: 'string', format: 'date-time', nullable: true, description: 'Время отправки последнего сообщения, прочитанного клиентом'),
         new OA\Property(property: 'agent_last_read_at', type: 'string', format: 'date-time', nullable: true, description: 'Время отправки последнего сообщения, прочитанного оператором'),
+        new OA\Property(property: 'requester_last_message_at', type: 'string', format: 'date-time', nullable: true, description: 'Время отправки последнего публичного сообщения автором обращения'),
+        new OA\Property(property: 'agent_last_message_at', type: 'string', format: 'date-time', nullable: true, description: 'Время отправки последнего публичного сообщения отвечающим'),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'messages', description: 'Есть только в карточке. Клиенту не отдаются внутренние заметки. В списке ключ отсутствует.', type: 'array', items: new OA\Items(ref: '#/components/schemas/TicketMessageResource')),
@@ -71,6 +73,8 @@ class TicketResource extends JsonResource
             'closed_at' => $this->closed_at,
             'requester_last_read_at' => $this->requester_last_read_at,
             'agent_last_read_at' => $this->agent_last_read_at,
+            'requester_last_message_at' => $this->requester_last_message_at,
+            'agent_last_message_at' => $this->agent_last_message_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'messages' => $this->when(
