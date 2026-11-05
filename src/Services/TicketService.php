@@ -11,10 +11,12 @@ use Fillindev\Support\Events\TicketAssigned;
 use Fillindev\Support\Events\TicketCategoryChanged;
 use Fillindev\Support\Events\TicketClosed;
 use Fillindev\Support\Events\TicketCreated;
+use Fillindev\Support\Events\TicketOperatorJoined;
 use Fillindev\Support\Events\TicketPriorityChanged;
 use Fillindev\Support\Events\TicketRead;
 use Fillindev\Support\Events\TicketReopened;
 use Fillindev\Support\Events\TicketStatusChanged;
+use Fillindev\Support\Exceptions\InvalidTicketTransition;
 use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketCategory;
 use Fillindev\Support\Models\TicketMessage;
@@ -87,10 +89,11 @@ class TicketService
         $assigneeType = $assignee->getSupportUserType();
 
         if ($ticket->assignee_id === $assigneeId && $ticket->assignee_type === $assigneeType) {
-            return $ticket;
+            return $this->attachOperator($ticket, $assignee, $actor);
         }
 
-        return DB::transaction(function () use ($ticket, $assigneeId, $assigneeType, $actor): Ticket {
+        return DB::transaction(function () use ($ticket, $assignee, $assigneeId, $assigneeType, $actor): Ticket {
+            $this->attachOperator($ticket, $assignee, $actor, quiet: true);
             $previousAssigneeId = $ticket->assignee_id;
             $ticket->update([
                 'assignee_id' => $assigneeId,
@@ -100,6 +103,34 @@ class TicketService
 
             return $ticket->refresh();
         });
+    }
+
+    /**
+     * Добавляет оператора в чат, не снимая остальных и не меняя назначенного специалиста.
+     * Повторный вызов для того же оператора ничего не пишет.
+     */
+    public function attachOperator(
+        Ticket $ticket,
+        SupportableUser $operator,
+        SupportableUser $actor,
+        bool $quiet = false,
+    ): Ticket {
+        $row = $ticket->operators()->firstOrCreate([
+            'operator_type' => $operator->getSupportUserType(),
+            'operator_id' => SupportIds::toInt($operator->getSupportUserId()),
+        ]);
+
+        if (! $row->wasRecentlyCreated) {
+            return $ticket;
+        }
+
+        if (! $quiet) {
+            $this->events->dispatch(new TicketOperatorJoined($ticket->refresh(), $operator, $actor));
+        } else {
+            $ticket->refresh();
+        }
+
+        return $ticket;
     }
 
     public function changeStatus(Ticket $ticket, TicketStatus $status, SupportableUser $actor): Ticket
@@ -150,6 +181,15 @@ class TicketService
 
             return $ticket->refresh();
         });
+    }
+
+    public function reopenByRequester(Ticket $ticket, SupportableUser $actor): Ticket
+    {
+        if ($ticket->status !== TicketStatus::Resolved) {
+            throw InvalidTicketTransition::reopenResolvedOnly();
+        }
+
+        return $this->reopen($ticket, $actor);
     }
 
     public function reopen(Ticket $ticket, SupportableUser $actor): Ticket

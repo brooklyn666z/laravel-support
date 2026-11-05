@@ -18,4 +18,9 @@ class InvalidTicketTransition extends DomainException
     {
         return new self('Закрытое обращение нельзя дополнить сообщением. Сначала переоткройте его.');
     }
+
+    public static function reopenResolvedOnly(): self
+    {
+        return new self('Переоткрыть со стороны клиента можно только обращение в статусе resolved.');
+    }
 }

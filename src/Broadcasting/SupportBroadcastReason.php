@@ -13,6 +13,7 @@ enum SupportBroadcastReason: string
     case Category = 'category';
     case Closed = 'closed';
     case Reopened = 'reopened';
+    case Operators = 'operators';
 
     /**
      * Создание и любая смена статуса, включая закрытие и переоткрытие.

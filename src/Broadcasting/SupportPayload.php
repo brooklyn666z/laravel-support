@@ -28,6 +28,7 @@ final class SupportPayload
             ->where('ticket_id', $ticket->id)
             ->orderBy('id')
             ->value('body'));
+        app(TicketPresenter::class)->applyOperators([$ticket]);
 
         $payload = $this->plain(TicketResource::make($ticket));
         unset($payload['messages']);

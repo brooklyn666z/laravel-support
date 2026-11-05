@@ -8,6 +8,7 @@ use Fillindev\Support\Contracts\SupportableUser;
 use Fillindev\Support\Enums\TicketEventType;
 use Fillindev\Support\Events\MessagePosted;
 use Fillindev\Support\Events\TicketAssigned;
+use Fillindev\Support\Events\TicketOperatorJoined;
 use Fillindev\Support\Events\TicketCategoryChanged;
 use Fillindev\Support\Events\TicketClosed;
 use Fillindev\Support\Events\TicketCreated;
@@ -28,6 +29,7 @@ class RecordTicketHistory
         return [
             TicketCreated::class => 'created',
             TicketAssigned::class => 'assigned',
+            TicketOperatorJoined::class => 'operatorJoined',
             TicketStatusChanged::class => 'statusChanged',
             TicketPriorityChanged::class => 'priorityChanged',
             TicketCategoryChanged::class => 'categoryChanged',
@@ -56,6 +58,17 @@ class RecordTicketHistory
             TicketEventType::Assigned,
             oldValue: $event->previousAssigneeId === null ? null : (string) $event->previousAssigneeId,
             newValue: $event->ticket->assignee_id === null ? null : (string) $event->ticket->assignee_id,
+        );
+    }
+
+    public function operatorJoined(TicketOperatorJoined $event): void
+    {
+        $this->record(
+            $event->ticket,
+            $event->actor,
+            TicketEventType::OperatorJoined,
+            newValue: (string) $event->operator->getSupportUserId(),
+            meta: ['operator_type' => $event->operator->getSupportUserType()],
         );
     }
 

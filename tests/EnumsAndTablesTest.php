@@ -17,6 +17,7 @@ class EnumsAndTablesTest extends TestCase
         $this->assertSame('support_ticket_messages', SupportTables::name('ticket_messages'));
         $this->assertSame('support_ticket_categories', SupportTables::name('ticket_categories'));
         $this->assertSame('support_ticket_events', SupportTables::name('ticket_events'));
+        $this->assertSame('support_ticket_operators', SupportTables::name('ticket_operators'));
     }
 
     public function test_default_status_and_priority_values(): void

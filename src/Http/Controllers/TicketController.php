@@ -69,7 +69,7 @@ class TicketController extends SupportController
         path: '/support/tickets',
         tags: ['Support Tickets'],
         summary: 'Список своих обращений',
-        description: 'По 15 записей. В элементах нет messages. summary считает все свои обращения, страница на него не влияет.',
+        description: 'По 15 записей, новые сообщения сверху (last_replied_at). В элементах нет messages. summary считает все свои обращения, страница на него не влияет.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
@@ -85,8 +85,13 @@ class TicketController extends SupportController
         $this->authorize('viewAny', Ticket::class);
 
         $base = $this->ownTickets();
-        $page = (clone $base)->with('category')->latest('id')->paginate(15);
+        $page = (clone $base)
+            ->with(['category', 'operators'])
+            ->orderByDesc('last_replied_at')
+            ->orderByDesc('id')
+            ->paginate(15);
         $this->presenter->applyOpeningBodies($page->items());
+        $this->presenter->applyOperators($page->items());
 
         return TicketResource::collection($page)->additional([
             'summary' => $this->presenter->statusSummary($base),
@@ -333,6 +338,35 @@ class TicketController extends SupportController
 
         return $this->attempt(function () use ($ticket) {
             $ticket = $this->tickets->close($ticket, $this->actor());
+
+            return $this->ticketResponse($ticket, true);
+        });
+    }
+
+    #[OA\Post(
+        path: '/support/tickets/{ticket}/reopen',
+        tags: ['Support Tickets'],
+        summary: 'Переоткрыть своё решённое обращение',
+        description: 'Тело запроса не нужно. Доступно только из статуса resolved: клиент сам решает, что проблема ещё не закрыта. Из closed переоткрыть нельзя.',
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Чужое обращение'),
+            new OA\Response(response: 404, description: 'Не найдено'),
+            new OA\Response(ref: '#/components/responses/SupportUnprocessable', response: 422),
+        ],
+    )]
+    public function reopen(int $ticket): JsonResponse
+    {
+        $ticket = $this->ownTicket($ticket);
+        $this->authorize('reply', $ticket);
+
+        return $this->attempt(function () use ($ticket) {
+            $ticket = $this->tickets->reopenByRequester($ticket, $this->actor());
 
             return $this->ticketResponse($ticket, true);
         });

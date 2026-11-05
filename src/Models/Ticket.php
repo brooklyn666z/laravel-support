@@ -76,6 +76,17 @@ class Ticket extends Model
     }
 
     /**
+     * Операторы, которые участвуют в чате обращения.
+     * Назначение (assignee) при этом может быть одно.
+     *
+     * @return HasMany<TicketOperator, $this>
+     */
+    public function operators(): HasMany
+    {
+        return $this->hasMany(TicketOperator::class, 'ticket_id');
+    }
+
+    /**
      * @return HasMany<TicketEvent, $this>
      */
     public function events(): HasMany

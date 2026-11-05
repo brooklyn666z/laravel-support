@@ -41,6 +41,7 @@ class MigrationsTest extends TestCase
         $this->assertTrue(Schema::hasTable('support_tickets'));
         $this->assertTrue(Schema::hasTable('support_ticket_messages'));
         $this->assertTrue(Schema::hasTable('support_ticket_events'));
+        $this->assertTrue(Schema::hasTable('support_ticket_operators'));
 
         $this->assertTrue(Schema::hasColumns('support_tickets', [
             'number',

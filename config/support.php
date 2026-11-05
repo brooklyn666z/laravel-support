@@ -25,6 +25,7 @@ return [
         'ticket_messages' => 'ticket_messages',
         'ticket_categories' => 'ticket_categories',
         'ticket_events' => 'ticket_events',
+        'ticket_operators' => 'ticket_operators',
     ],
 
     /*

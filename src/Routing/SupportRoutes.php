@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fillindev\Support\Routing;
 
+use Fillindev\Support\Http\Controllers\Admin\StatisticsController;
 use Fillindev\Support\Http\Controllers\Admin\TicketController as AdminTicketController;
 use Fillindev\Support\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
@@ -33,14 +34,17 @@ final class SupportRoutes
         Route::get('support/tickets/{ticket}', [TicketController::class, 'show'])->whereNumber('ticket')->name($namePrefix.'tickets.show');
         Route::post('support/tickets/{ticket}/messages', [TicketController::class, 'storeMessage'])->whereNumber('ticket')->name($namePrefix.'tickets.messages.store');
         Route::post('support/tickets/{ticket}/close', [TicketController::class, 'close'])->whereNumber('ticket')->name($namePrefix.'tickets.close');
+        Route::post('support/tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->whereNumber('ticket')->name($namePrefix.'tickets.reopen');
         Route::post('support/messages/{message}/read', [TicketController::class, 'readMessage'])->whereNumber('message')->name($namePrefix.'messages.read');
     }
 
     public static function admin(): void
     {
+        Route::get('support/admin/statistics', [StatisticsController::class, 'index'])->name('support.admin.statistics');
         Route::get('support/admin/tickets', [AdminTicketController::class, 'index'])->name('support.admin.tickets.index');
         Route::get('support/admin/tickets/{ticket}', [AdminTicketController::class, 'show'])->whereNumber('ticket')->name('support.admin.tickets.show');
         Route::post('support/admin/tickets/{ticket}/messages', [AdminTicketController::class, 'storeMessage'])->whereNumber('ticket')->name('support.admin.tickets.messages.store');
+        Route::post('support/admin/tickets/{ticket}/operators', [AdminTicketController::class, 'joinOperator'])->whereNumber('ticket')->name('support.admin.tickets.operators.store');
         Route::post('support/admin/tickets/{ticket}/assign', [AdminTicketController::class, 'assign'])->whereNumber('ticket')->name('support.admin.tickets.assign');
         Route::post('support/admin/tickets/{ticket}/status', [AdminTicketController::class, 'changeStatus'])->whereNumber('ticket')->name('support.admin.tickets.status');
         Route::post('support/admin/tickets/{ticket}/priority', [AdminTicketController::class, 'changePriority'])->whereNumber('ticket')->name('support.admin.tickets.priority');

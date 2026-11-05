@@ -10,6 +10,7 @@ use Fillindev\Support\Events\TicketAssigned;
 use Fillindev\Support\Events\TicketCategoryChanged;
 use Fillindev\Support\Events\TicketClosed;
 use Fillindev\Support\Events\TicketCreated;
+use Fillindev\Support\Events\TicketOperatorJoined;
 use Fillindev\Support\Events\TicketPriorityChanged;
 use Fillindev\Support\Events\MessagePosted;
 use Fillindev\Support\Events\TicketRead;
@@ -34,6 +35,7 @@ class BroadcastSupportRealtime
         return [
             TicketCreated::class => 'created',
             TicketAssigned::class => 'assigned',
+            TicketOperatorJoined::class => 'operatorJoined',
             TicketStatusChanged::class => 'statusChanged',
             TicketPriorityChanged::class => 'priorityChanged',
             TicketCategoryChanged::class => 'categoryChanged',
@@ -53,6 +55,11 @@ class BroadcastSupportRealtime
     public function assigned(TicketAssigned $event): void
     {
         $this->realtime->ticket($event->ticket, SupportBroadcastReason::Assigned);
+    }
+
+    public function operatorJoined(TicketOperatorJoined $event): void
+    {
+        $this->realtime->ticket($event->ticket, SupportBroadcastReason::Operators);
     }
 
     public function statusChanged(TicketStatusChanged $event): void

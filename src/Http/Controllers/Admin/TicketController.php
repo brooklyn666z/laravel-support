@@ -9,8 +9,11 @@ use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Contracts\SupportUserResolver;
 use Fillindev\Support\Enums\TicketPriority;
 use Fillindev\Support\Enums\TicketStatus;
+use Fillindev\Support\Http\AdminTicketQuery;
 use Fillindev\Support\Http\Controllers\SupportController;
 use Fillindev\Support\Http\Requests\AssignTicketRequest;
+use Fillindev\Support\Http\Requests\IndexTicketsRequest;
+use Fillindev\Support\Http\Requests\JoinOperatorRequest;
 use Fillindev\Support\Http\Requests\ChangePriorityRequest;
 use Fillindev\Support\Http\Requests\ChangeStatusRequest;
 use Fillindev\Support\Http\Requests\StoreMessageRequest;
@@ -20,7 +23,6 @@ use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Services\MessageService;
 use Fillindev\Support\Services\TicketService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use InvalidArgumentException;
 use OpenApi\Attributes as OA;
 
@@ -45,10 +47,18 @@ class TicketController extends SupportController
         path: '/support/admin/tickets',
         tags: ['Admin Support Tickets'],
         summary: 'Очередь обращений',
-        description: 'По 15 записей, без messages. status фильтрует список и не фильтрует summary. requester_id и requester_type сужают и список, и summary.',
+        description: 'По 15 записей, без messages. status фильтрует только список. id, category_id, subject, priority, assignee_id, updated_from, updated_to, requester_id и requester_type сужают и список, и summary.',
         security: [['bearerAuth' => []]],
         parameters: [
+            new OA\Parameter(name: 'id', in: 'query', required: false, description: 'Точный id. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'status', in: 'query', required: false, description: 'Фильтр списка. На summary не влияет.', schema: new OA\Schema(type: 'string', enum: ['open', 'in_progress', 'waiting_customer', 'resolved', 'closed'])),
+            new OA\Parameter(name: 'priority', in: 'query', required: false, description: 'Приоритет. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'string', enum: ['low', 'normal', 'high', 'urgent'])),
+            new OA\Parameter(name: 'category_id', in: 'query', required: false, description: 'Категория. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'subject', in: 'query', required: false, description: 'Часть темы. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'assignee_id', in: 'query', required: false, description: 'Id специалиста. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'assignee_type', in: 'query', required: false, description: 'Тип модели специалиста. Имеет смысл вместе с assignee_id.', schema: new OA\Schema(type: 'string', example: 'user')),
+            new OA\Parameter(name: 'updated_from', in: 'query', required: false, description: 'Начало периода обновления, включительно. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'updated_to', in: 'query', required: false, description: 'Конец периода обновления, включительно. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'string', format: 'date')),
             new OA\Parameter(name: 'requester_type', in: 'query', required: false, description: 'Тип автора: user или agent. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'string', example: 'agent')),
             new OA\Parameter(name: 'requester_id', in: 'query', required: false, description: 'Id автора. Влияет и на список, и на summary.', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
@@ -59,20 +69,18 @@ class TicketController extends SupportController
             new OA\Response(response: 403, description: 'Нет доступа к очереди'),
         ],
     )]
-    public function index(Request $request): JsonResponse
+    public function index(IndexTicketsRequest $request): JsonResponse
     {
         $this->authorize('handle', Ticket::class);
 
-        $base = Ticket::query()
-            ->when($request->filled('requester_type'), fn ($query) => $query->where('requester_type', $request->query('requester_type')))
-            ->when($request->filled('requester_id'), fn ($query) => $query->where('requester_id', $request->query('requester_id')));
-
-        $page = (clone $base)
-            ->with('category')
-            ->when($request->query('status'), fn ($query, $status) => $query->where('status', $status))
+        $filters = $request->validated();
+        $base = AdminTicketQuery::base($filters);
+        $page = AdminTicketQuery::page($base, $filters)
+            ->with(['category', 'operators'])
             ->latest('id')
             ->paginate(15);
         $this->presenter->applyOpeningBodies($page->items());
+        $this->presenter->applyOperators($page->items());
 
         return TicketResource::collection($page)->additional([
             'summary' => $this->presenter->statusSummary($base),
@@ -107,7 +115,7 @@ class TicketController extends SupportController
         path: '/support/admin/tickets/{ticket}/messages',
         tags: ['Admin Support Tickets'],
         summary: 'Ответ оператора или внутренняя заметка',
-        description: 'В закрытое обращение писать нельзя. Ответ — карточка, включая внутренние заметки.',
+        description: 'В закрытое обращение писать нельзя. Публичный ответ добавляет автора в участники чата, внутренних заметок это не касается. Отвечать может любой оператор с доступом handle, не только назначенный специалист. Ответ — карточка, включая внутренние заметки.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
@@ -148,7 +156,8 @@ class TicketController extends SupportController
     #[OA\Post(
         path: '/support/admin/tickets/{ticket}/assign',
         tags: ['Admin Support Tickets'],
-        summary: 'Назначить оператора',
+        summary: 'Назначить специалиста',
+        description: 'Ставит assignee и добавляет его в чат. Уже участвующие операторы остаются.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
@@ -186,6 +195,53 @@ class TicketController extends SupportController
             }
 
             $ticket = $this->tickets->assign($ticket, $assignee, $this->actor());
+
+            return $this->ticketResponse($ticket, false);
+        });
+    }
+
+    #[OA\Post(
+        path: '/support/admin/tickets/{ticket}/operators',
+        tags: ['Admin Support Tickets'],
+        summary: 'Добавить оператора в чат',
+        description: 'Несколько операторов могут отвечать в одном обращении. Повтор для того же оператора ничего не меняет. Назначенный специалист (assignee) не сбрасывается.',
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['operator_id'],
+                properties: [
+                    new OA\Property(property: 'operator_id', type: 'integer', example: 4),
+                    new OA\Property(property: 'operator_type', type: 'string', example: 'user', description: 'Тип модели оператора. По умолчанию user.'),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketData')),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Нет доступа к очереди'),
+            new OA\Response(response: 404, description: 'Не найдено'),
+            new OA\Response(ref: '#/components/responses/SupportUnprocessable', response: 422),
+        ],
+    )]
+    public function joinOperator(JoinOperatorRequest $request, Ticket $ticket): JsonResponse
+    {
+        $this->authorize('handle', Ticket::class);
+
+        return $this->attempt(function () use ($request, $ticket) {
+            $operator = $this->users->resolve(
+                (string) $request->input('operator_type', 'user'),
+                $request->integer('operator_id'),
+            );
+
+            if ($operator === null) {
+                throw new InvalidArgumentException('Пользователь не найден.');
+            }
+
+            $ticket = $this->tickets->attachOperator($ticket, $operator, $this->actor());
 
             return $this->ticketResponse($ticket, false);
         });

@@ -19,6 +19,7 @@ class MessageService
 {
     public function __construct(
         private readonly Dispatcher $events,
+        private readonly TicketService $tickets,
     ) {}
 
     public function post(
@@ -51,9 +52,19 @@ class MessageService
 
             $ticket->rememberPartyMessageAt($message);
 
+            if (! $internal && ! $this->authorIsRequester($ticket, $author)) {
+                $this->tickets->attachOperator($ticket, $author, $author);
+            }
+
             $this->events->dispatch(new MessagePosted($ticket, $message, $author));
 
             return $message->refresh();
         });
+    }
+
+    private function authorIsRequester(Ticket $ticket, SupportableUser $author): bool
+    {
+        return $author->getSupportUserType() === (string) $ticket->requester_type
+            && SupportIds::toInt($author->getSupportUserId()) === (int) $ticket->requester_id;
     }
 }

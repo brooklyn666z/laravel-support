@@ -12,6 +12,7 @@ use Fillindev\Support\Models\TicketCategory;
 use Fillindev\Support\Services\MessageService;
 use Fillindev\Support\Services\TicketService;
 use Fillindev\Support\Tests\Stubs\FakeUser;
+use Fillindev\Support\Tests\Stubs\FakeUserResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class TicketServiceTest extends TestCase
@@ -36,6 +37,7 @@ class TicketServiceTest extends TestCase
             'prefix' => '',
             'foreign_key_constraints' => true,
         ]);
+        $app['config']->set('support.bindings.user_resolver', FakeUserResolver::class);
     }
 
     public function test_happy_path_creates_thread_assignment_and_history(): void

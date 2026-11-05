@@ -13,6 +13,7 @@ final class SupportTables
             'ticket_messages' => 'ticket_messages',
             'ticket_categories' => 'ticket_categories',
             'ticket_events' => 'ticket_events',
+            'ticket_operators' => 'ticket_operators',
         ];
 
         $prefix = (string) config('support.table_prefix', 'support_');

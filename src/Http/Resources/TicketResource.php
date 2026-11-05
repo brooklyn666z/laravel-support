@@ -17,6 +17,19 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'requester_id', type: 'integer', example: 7),
         new OA\Property(property: 'assignee_type', type: 'string', nullable: true, example: 'user'),
         new OA\Property(property: 'assignee_id', type: 'integer', nullable: true, example: 3),
+        new OA\Property(
+            property: 'operators',
+            description: 'Операторы в чате. Назначенный специалист — отдельно, в assignee.',
+            type: 'array',
+            items: new OA\Items(
+                properties: [
+                    new OA\Property(property: 'type', type: 'string', example: 'user'),
+                    new OA\Property(property: 'id', type: 'integer', example: 3),
+                    new OA\Property(property: 'name', type: 'string', nullable: true, example: 'Иван'),
+                ],
+                type: 'object',
+            ),
+        ),
         new OA\Property(property: 'category_id', type: 'integer', nullable: true, example: 2),
         new OA\Property(
             property: 'category',
@@ -58,6 +71,7 @@ class TicketResource extends JsonResource
             'requester_id' => $this->requester_id,
             'assignee_type' => $this->assignee_type,
             'assignee_id' => $this->assignee_id,
+            'operators' => $this->operatorsList(),
             'category_id' => $this->category_id,
             'category' => $this->whenLoaded('category', fn () => [
                 'id' => $this->category->id,
@@ -82,5 +96,27 @@ class TicketResource extends JsonResource
                 fn () => TicketMessageResource::collection($this->messages),
             ),
         ];
+    }
+
+    /**
+     * @return list<array{type: string, id: int, name: string|null}>
+     */
+    private function operatorsList(): array
+    {
+        $payload = $this->resource->getAttribute('operators_payload');
+
+        if (is_array($payload)) {
+            return $payload;
+        }
+
+        if (! $this->resource->relationLoaded('operators')) {
+            return [];
+        }
+
+        return $this->operators->map(fn ($operator) => [
+            'type' => (string) $operator->operator_type,
+            'id' => (int) $operator->operator_id,
+            'name' => null,
+        ])->values()->all();
     }
 }

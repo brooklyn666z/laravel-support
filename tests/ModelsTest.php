@@ -11,6 +11,7 @@ use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketCategory;
 use Fillindev\Support\Models\TicketEvent;
 use Fillindev\Support\Models\TicketMessage;
+use Fillindev\Support\Models\TicketOperator;
 
 class ModelsTest extends TestCase
 {
@@ -23,10 +24,12 @@ class ModelsTest extends TestCase
         $this->assertSame('support_ticket_messages', (new TicketMessage)->getTable());
         $this->assertSame('support_ticket_categories', $category->getTable());
         $this->assertSame('support_ticket_events', (new TicketEvent)->getTable());
+        $this->assertSame('support_ticket_operators', (new TicketOperator)->getTable());
 
         $this->assertInstanceOf(TicketCategory::class, $ticket->category()->getRelated());
         $this->assertInstanceOf(TicketMessage::class, $ticket->messages()->getRelated());
         $this->assertInstanceOf(TicketEvent::class, $ticket->events()->getRelated());
+        $this->assertInstanceOf(TicketOperator::class, $ticket->operators()->getRelated());
         $this->assertInstanceOf(Ticket::class, $category->tickets()->getRelated());
         $this->assertInstanceOf(Ticket::class, (new TicketMessage)->ticket()->getRelated());
         $this->assertInstanceOf(Ticket::class, (new TicketEvent)->ticket()->getRelated());

@@ -8,6 +8,7 @@ enum TicketEventType: string
 {
     case Created = 'created';
     case Assigned = 'assigned';
+    case OperatorJoined = 'operator_joined';
     case StatusChanged = 'status_changed';
     case PriorityChanged = 'priority_changed';
     case CategoryChanged = 'category_changed';

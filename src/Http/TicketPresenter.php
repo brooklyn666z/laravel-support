@@ -12,6 +12,7 @@ use Fillindev\Support\Http\Resources\TicketMessageResource;
 use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketMessage;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
 /**
@@ -94,8 +95,40 @@ final class TicketPresenter
             'body',
             $messages->first(fn (TicketMessage $message) => ! $message->is_internal)?->body,
         );
+        $this->applyOperators([$ticket]);
 
         return $ticket;
+    }
+
+    /**
+     * @param  iterable<Ticket>  $tickets
+     */
+    public function applyOperators(iterable $tickets): void
+    {
+        $models = new Collection(collect($tickets)->filter(fn ($ticket) => $ticket instanceof Ticket)->values()->all());
+
+        if ($models->isEmpty()) {
+            return;
+        }
+
+        $models->loadMissing('operators');
+        $names = [];
+
+        foreach ($models as $ticket) {
+            $ticket->setAttribute('operators_payload', $ticket->operators->map(function ($operator) use (&$names): array {
+                $key = $operator->operator_type.':'.$operator->operator_id;
+                if (! array_key_exists($key, $names)) {
+                    $user = $this->users->resolve((string) $operator->operator_type, $operator->operator_id);
+                    $names[$key] = $user instanceof SupportableUser ? $user->getSupportDisplayName() : null;
+                }
+
+                return [
+                    'type' => $operator->operator_type,
+                    'id' => (int) $operator->operator_id,
+                    'name' => $names[$key],
+                ];
+            })->values()->all());
+        }
     }
 
     /**
