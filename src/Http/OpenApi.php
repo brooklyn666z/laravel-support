@@ -51,6 +51,21 @@ use OpenApi\Attributes as OA;
     ],
 )]
 #[OA\Schema(
+    schema: 'TicketMessagePage',
+    description: 'Окно ленты относительно якоря. Без meta/links: это не page-пагинация.',
+    required: ['data'],
+    properties: [
+        new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/TicketMessageResource')),
+    ],
+)]
+#[OA\Schema(
+    schema: 'TicketMessageData',
+    required: ['data'],
+    properties: [
+        new OA\Property(property: 'data', ref: '#/components/schemas/TicketMessageResource'),
+    ],
+)]
+#[OA\Schema(
     schema: 'TicketData',
     required: ['data'],
     properties: [

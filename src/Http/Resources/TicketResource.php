@@ -54,7 +54,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'agent_last_message_at', type: 'string', format: 'date-time', nullable: true, description: 'Время отправки последнего публичного сообщения отвечающим'),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
-        new OA\Property(property: 'messages', description: 'Есть только в карточке. Клиенту не отдаются внутренние заметки. В списке ключ отсутствует.', type: 'array', items: new OA\Items(ref: '#/components/schemas/TicketMessageResource')),
+        new OA\Property(property: 'messages', description: 'Есть только в карточке: последние 20 сообщений вокруг самого нового (prev+next). Остальную ленту даёт GET .../messages/{message}. Клиенту не отдаются внутренние заметки. В списке ключ отсутствует.', type: 'array', items: new OA\Items(ref: '#/components/schemas/TicketMessageResource')),
+        new OA\Property(property: 'pinned_messages', description: 'Закреплённые сообщения. Есть только в карточке. Клиенту не отдаются внутренние.', type: 'array', items: new OA\Items(ref: '#/components/schemas/TicketMessageResource')),
     ],
 )]
 class TicketResource extends JsonResource
@@ -94,6 +95,10 @@ class TicketResource extends JsonResource
             'messages' => $this->when(
                 $this->resource->relationLoaded('messages'),
                 fn () => TicketMessageResource::collection($this->messages),
+            ),
+            'pinned_messages' => $this->when(
+                $this->resource->offsetExists('pinned_messages'),
+                fn () => TicketMessageResource::collection($this->resource->getAttribute('pinned_messages') ?? []),
             ),
         ];
     }

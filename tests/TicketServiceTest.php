@@ -66,17 +66,18 @@ class TicketServiceTest extends TestCase
         $this->assertSame(TicketStatus::Open, $ticket->status);
         $this->assertSame('user', $ticket->requester_type);
         $this->assertSame(7, $ticket->requester_id);
-        $this->assertSame(1, $ticket->messages()->public()->count());
+        $this->assertSame(1, $ticket->messages()->public()->human()->count());
 
         $ticket = $tickets->assign($ticket, $agent, $agent);
         $this->assertSame(3, $ticket->assignee_id);
+        $this->assertSame(1, $ticket->messages()->where('is_system', true)->count());
 
         $messages->post($ticket, $agent, 'Ответ клиенту');
         $messages->post($ticket, $agent, 'Внутренняя заметка', internal: true);
 
         $ticket->refresh();
-        $this->assertSame(2, $ticket->messages()->public()->count());
-        $this->assertSame(3, $ticket->messages()->count());
+        $this->assertSame(2, $ticket->messages()->public()->human()->count());
+        $this->assertSame(4, $ticket->messages()->count());
 
         $ticket = $tickets->changeStatus($ticket, TicketStatus::InProgress, $agent);
         $ticket = $tickets->close($ticket, $agent);
@@ -101,9 +102,13 @@ class TicketServiceTest extends TestCase
             TicketEventType::Assigned->value,
             TicketEventType::MessagePosted->value,
             TicketEventType::MessagePosted->value,
+            TicketEventType::MessagePosted->value,
             TicketEventType::StatusChanged->value,
+            TicketEventType::MessagePosted->value,
             TicketEventType::Closed->value,
+            TicketEventType::MessagePosted->value,
             TicketEventType::Reopened->value,
+            TicketEventType::MessagePosted->value,
         ], $types);
     }
 }

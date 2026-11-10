@@ -29,6 +29,8 @@ use OpenApi\Attributes as OA;
             ],
         ),
         new OA\Property(property: 'is_internal', description: 'Внутренняя заметка оператора. В клиентской карточке таких сообщений нет.', type: 'boolean', example: false),
+        new OA\Property(property: 'is_system', description: 'Системная запись в ленте: назначение, статус, закрытие. Клиент её видит, в непрочитанные не входит.', type: 'boolean', example: false),
+        new OA\Property(property: 'is_pinned', description: 'Сообщение закреплено.', type: 'boolean', example: false),
         new OA\Property(property: 'body', type: 'string', example: 'Текст сообщения'),
         new OA\Property(property: 'attachments', description: 'Вложения сообщения. Пустой массив, если файлов нет.', type: 'array', items: new OA\Items(
             properties: [
@@ -59,6 +61,8 @@ class TicketMessageResource extends JsonResource
             'author_id' => $this->author_id,
             'author' => $this->resource->getAttribute('author_payload'),
             'is_internal' => $this->is_internal,
+            'is_system' => $this->is_system,
+            'is_pinned' => $this->is_pinned,
             'body' => $this->body,
             'attachments' => is_array($attachments) ? array_values($attachments) : [],
             'created_at' => $this->created_at,

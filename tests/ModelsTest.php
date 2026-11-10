@@ -54,6 +54,8 @@ class ModelsTest extends TestCase
     {
         $message = new TicketMessage([
             'is_internal' => 1,
+            'is_system' => 1,
+            'is_pinned' => 1,
             'author_id' => '9',
         ]);
         $event = new TicketEvent([
@@ -63,6 +65,8 @@ class ModelsTest extends TestCase
         ]);
 
         $this->assertTrue($message->is_internal);
+        $this->assertTrue($message->is_system);
+        $this->assertTrue($message->is_pinned);
         $this->assertSame(9, $message->author_id);
         $this->assertSame(TicketEventType::StatusChanged, $event->type);
         $this->assertSame(['from' => 'open'], $event->meta);

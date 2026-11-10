@@ -25,6 +25,7 @@ final class SupportPayload
         $ticket->loadMissing('category');
         $ticket->setAttribute('body', TicketMessage::query()
             ->public()
+            ->human()
             ->where('ticket_id', $ticket->id)
             ->orderBy('id')
             ->value('body'));

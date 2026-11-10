@@ -16,6 +16,8 @@ class TicketMessage extends Model
         'author_type',
         'author_id',
         'is_internal',
+        'is_system',
+        'is_pinned',
         'body',
     ];
 
@@ -33,6 +35,8 @@ class TicketMessage extends Model
             'ticket_id' => 'integer',
             'author_id' => 'integer',
             'is_internal' => 'boolean',
+            'is_system' => 'boolean',
+            'is_pinned' => 'boolean',
         ];
     }
 
@@ -53,5 +57,25 @@ class TicketMessage extends Model
     public function scopePublic(Builder $query): Builder
     {
         return $query->where('is_internal', false);
+    }
+
+    /**
+     * Сообщения людей, без системных записей в ленте.
+     *
+     * @param  Builder<TicketMessage>  $query
+     * @return Builder<TicketMessage>
+     */
+    public function scopeHuman(Builder $query): Builder
+    {
+        return $query->where('is_system', false);
+    }
+
+    /**
+     * @param  Builder<TicketMessage>  $query
+     * @return Builder<TicketMessage>
+     */
+    public function scopePinned(Builder $query): Builder
+    {
+        return $query->where('is_pinned', true);
     }
 }

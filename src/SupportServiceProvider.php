@@ -10,6 +10,7 @@ use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Contracts\SupportNotificationGateway;
 use Fillindev\Support\Contracts\SupportUserResolver;
 use Fillindev\Support\Listeners\BroadcastSupportRealtime;
+use Fillindev\Support\Listeners\PostTicketSystemMessages;
 use Fillindev\Support\Listeners\RecordTicketHistory;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\ServiceProvider;
@@ -64,6 +65,7 @@ class SupportServiceProvider extends ServiceProvider
         SupportChannelAuthorization::register();
         $this->app->make('events')->subscribe(RecordTicketHistory::class);
         $this->app->make('events')->subscribe(BroadcastSupportRealtime::class);
+        $this->app->make('events')->subscribe(PostTicketSystemMessages::class);
 
         if ($this->app->runningInConsole()) {
             $this->publishes([

@@ -95,6 +95,12 @@ class BroadcastSupportRealtime
 
     public function messagePosted(MessagePosted $event): void
     {
+        if ($event->message->is_system) {
+            $this->realtime->message($event->ticket, $event->message);
+
+            return;
+        }
+
         if ($event->message->is_internal) {
             return;
         }

@@ -100,7 +100,7 @@ class Ticket extends Model
      */
     public function rememberPartyMessageAt(TicketMessage $message): void
     {
-        if ($message->is_internal) {
+        if ($message->is_internal || $message->is_system) {
             return;
         }
 

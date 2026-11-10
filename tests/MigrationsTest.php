@@ -63,6 +63,8 @@ class MigrationsTest extends TestCase
             'author_type',
             'author_id',
             'is_internal',
+            'is_system',
+            'is_pinned',
             'body',
         ]));
         $this->assertTrue(Schema::hasColumns('support_ticket_events', [

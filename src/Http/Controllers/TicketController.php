@@ -7,6 +7,8 @@ namespace Fillindev\Support\Http\Controllers;
 use Fillindev\Support\Broadcasting\SupportRealtime;
 use Fillindev\Support\Contracts\SupportAttachmentStore;
 use Fillindev\Support\Enums\TicketPriority;
+use Fillindev\Support\Http\Requests\IndexMessagesRequest;
+use Fillindev\Support\Http\Requests\PinMessageRequest;
 use Fillindev\Support\Http\Requests\StoreMessageRequest;
 use Fillindev\Support\Http\Requests\StoreTicketRequest;
 use Fillindev\Support\Http\Resources\TicketResource;
@@ -28,12 +30,12 @@ class TicketController extends SupportController
 {
     public function __construct(
         TicketPresenter $presenter,
+        MessageService $messages,
         private readonly TicketService $tickets,
-        private readonly MessageService $messages,
         private readonly SupportAttachmentStore $attachments,
         private readonly SupportRealtime $realtime,
     ) {
-        parent::__construct($presenter);
+        parent::__construct($presenter, $messages);
     }
 
     #[OA\Get(
@@ -255,7 +257,7 @@ class TicketController extends SupportController
         path: '/support/tickets/{ticket}',
         tags: ['Support Tickets'],
         summary: 'Карточка обращения',
-        description: 'Отмечает обращения прочитанным клиентом. В messages только публичные сообщения, с автором и вложениями.',
+        description: 'Отмечает обращения прочитанным клиентом. В messages последние 20 публичных сообщений вокруг самого нового. Остальную ленту — GET /support/tickets/{ticket}/messages/{message}. Закреплённые — в pinned_messages.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
@@ -312,6 +314,67 @@ class TicketController extends SupportController
 
             return $this->ticketResponse($ticket, true, 201);
         });
+    }
+
+    #[OA\Get(
+        path: '/support/tickets/{ticket}/messages/{message}',
+        tags: ['Support Tickets'],
+        summary: 'Лента сообщений относительно якоря',
+        description: 'Как в чатах: prev — старше якоря, next — новее. Само сообщение из пути попадает в список только если prev=1 и next=1 одновременно. Только публичные сообщения, включая системные. Внутренние заметки не отдаются.',
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'message', in: 'path', required: true, description: 'Id сообщения-якоря', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 50, default: 20)),
+            new OA\Parameter(name: 'prev', in: 'query', required: false, description: '0 или 1. По умолчанию 1.', schema: new OA\Schema(type: 'integer', enum: [0, 1], default: 1)),
+            new OA\Parameter(name: 'next', in: 'query', required: false, description: '0 или 1. По умолчанию 1.', schema: new OA\Schema(type: 'integer', enum: [0, 1], default: 1)),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketMessagePage')),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Чужое обращение'),
+            new OA\Response(response: 404, description: 'Не найдено'),
+        ],
+    )]
+    public function indexMessages(IndexMessagesRequest $request, int $ticket, TicketMessage $message): JsonResponse
+    {
+        $ticket = $this->ownTicket($ticket);
+        $this->authorize('view', $ticket);
+
+        return $this->messagesAroundResponse($request, $ticket, $message, true);
+    }
+
+    #[OA\Post(
+        path: '/support/tickets/{ticket}/messages/{message}/set-pinned',
+        tags: ['Support Tickets'],
+        summary: 'Закрепить или открепить сообщение',
+        description: 'По умолчанию закрепляет. Чтобы открепить, передайте is_pinned=false.',
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'message', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: false,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'is_pinned', type: 'boolean', example: true),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/TicketMessageData')),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Чужое обращение'),
+            new OA\Response(response: 404, description: 'Не найдено'),
+        ],
+    )]
+    public function setPinned(PinMessageRequest $request, int $ticket, TicketMessage $message): JsonResponse
+    {
+        $ticket = $this->ownTicket($ticket);
+        $this->authorize('reply', $ticket);
+
+        return $this->pinMessageResponse($request, $ticket, $message, true);
     }
 
     #[OA\Post(

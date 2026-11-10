@@ -33,6 +33,8 @@ final class SupportRoutes
         Route::post('support/tickets', [TicketController::class, 'store'])->name($namePrefix.'tickets.store');
         Route::get('support/tickets/{ticket}', [TicketController::class, 'show'])->whereNumber('ticket')->name($namePrefix.'tickets.show');
         Route::post('support/tickets/{ticket}/messages', [TicketController::class, 'storeMessage'])->whereNumber('ticket')->name($namePrefix.'tickets.messages.store');
+        Route::get('support/tickets/{ticket}/messages/{message}', [TicketController::class, 'indexMessages'])->whereNumber('ticket')->whereNumber('message')->name($namePrefix.'tickets.messages.index');
+        Route::post('support/tickets/{ticket}/messages/{message}/set-pinned', [TicketController::class, 'setPinned'])->whereNumber('ticket')->whereNumber('message')->name($namePrefix.'tickets.messages.pin');
         Route::post('support/tickets/{ticket}/close', [TicketController::class, 'close'])->whereNumber('ticket')->name($namePrefix.'tickets.close');
         Route::post('support/tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->whereNumber('ticket')->name($namePrefix.'tickets.reopen');
         Route::post('support/messages/{message}/read', [TicketController::class, 'readMessage'])->whereNumber('message')->name($namePrefix.'messages.read');
@@ -44,6 +46,8 @@ final class SupportRoutes
         Route::get('support/admin/tickets', [AdminTicketController::class, 'index'])->name('support.admin.tickets.index');
         Route::get('support/admin/tickets/{ticket}', [AdminTicketController::class, 'show'])->whereNumber('ticket')->name('support.admin.tickets.show');
         Route::post('support/admin/tickets/{ticket}/messages', [AdminTicketController::class, 'storeMessage'])->whereNumber('ticket')->name('support.admin.tickets.messages.store');
+        Route::get('support/admin/tickets/{ticket}/messages/{message}', [AdminTicketController::class, 'indexMessages'])->whereNumber('ticket')->whereNumber('message')->name('support.admin.tickets.messages.index');
+        Route::post('support/admin/tickets/{ticket}/messages/{message}/set-pinned', [AdminTicketController::class, 'setPinned'])->whereNumber('ticket')->whereNumber('message')->name('support.admin.tickets.messages.pin');
         Route::post('support/admin/tickets/{ticket}/operators', [AdminTicketController::class, 'joinOperator'])->whereNumber('ticket')->name('support.admin.tickets.operators.store');
         Route::post('support/admin/tickets/{ticket}/assign', [AdminTicketController::class, 'assign'])->whereNumber('ticket')->name('support.admin.tickets.assign');
         Route::post('support/admin/tickets/{ticket}/status', [AdminTicketController::class, 'changeStatus'])->whereNumber('ticket')->name('support.admin.tickets.status');

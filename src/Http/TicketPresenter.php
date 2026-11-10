@@ -11,6 +11,7 @@ use Fillindev\Support\Enums\TicketStatus;
 use Fillindev\Support\Http\Resources\TicketMessageResource;
 use Fillindev\Support\Models\Ticket;
 use Fillindev\Support\Models\TicketMessage;
+use Fillindev\Support\Services\MessageService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ final class TicketPresenter
     public function __construct(
         private readonly SupportUserResolver $users,
         private readonly SupportAttachmentStore $attachments,
+        private readonly MessageService $messages,
     ) {}
 
     /**
@@ -67,6 +69,7 @@ final class TicketPresenter
 
         $bodies = TicketMessage::query()
             ->public()
+            ->human()
             ->whereIn('ticket_id', $tickets->pluck('id')->all())
             ->orderBy('id')
             ->get(['ticket_id', 'body'])
@@ -79,25 +82,60 @@ final class TicketPresenter
 
     public function present(Ticket $ticket, bool $publicMessagesOnly): Ticket
     {
-        $messages = $ticket->messages()
+        $latest = $ticket->messages()
+            ->when($publicMessagesOnly, fn (Builder $query) => $query->public())
+            ->latest('id')
+            ->first();
+
+        $messages = $latest instanceof TicketMessage
+            ? $this->messages->around(
+                $latest,
+                20,
+                true,
+                true,
+                $publicMessagesOnly,
+            )
+            : new Collection;
+
+        $this->hydrateMessages($messages);
+
+        $pinned = $ticket->messages()
+            ->pinned()
             ->when($publicMessagesOnly, fn (Builder $query) => $query->public())
             ->orderBy('id')
             ->get();
-
-        $messages->each(function (TicketMessage $message): void {
-            $message->setAttribute('author_payload', $this->authorPayload($message));
-            $message->setAttribute('attachment_payload', $this->attachments->list($message));
-        });
+        $this->hydrateMessages($pinned);
 
         $ticket->setRelation('messages', $messages);
+        $ticket->setAttribute('pinned_messages', $pinned);
         $ticket->loadMissing('category');
         $ticket->setAttribute(
             'body',
-            $messages->first(fn (TicketMessage $message) => ! $message->is_internal)?->body,
+            TicketMessage::query()
+                ->public()
+                ->human()
+                ->where('ticket_id', $ticket->id)
+                ->orderBy('id')
+                ->value('body'),
         );
         $this->applyOperators([$ticket]);
 
         return $ticket;
+    }
+
+    /**
+     * @param  iterable<TicketMessage>  $messages
+     */
+    public function hydrateMessages(iterable $messages): void
+    {
+        foreach ($messages as $message) {
+            if (! $message instanceof TicketMessage) {
+                continue;
+            }
+
+            $message->setAttribute('author_payload', $this->authorPayload($message));
+            $message->setAttribute('attachment_payload', $this->attachments->list($message));
+        }
     }
 
     /**
@@ -136,8 +174,7 @@ final class TicketPresenter
      */
     public function messagePayload(TicketMessage $message): array
     {
-        $message->setAttribute('author_payload', $this->authorPayload($message));
-        $message->setAttribute('attachment_payload', $this->attachments->list($message));
+        $this->hydrateMessages([$message]);
 
         $request = app()->bound('request') ? request() : Request::create('/');
 

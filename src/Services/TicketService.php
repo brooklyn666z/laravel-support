@@ -72,6 +72,8 @@ class TicketService
                 'author_type' => $requesterType,
                 'author_id' => $requesterId,
                 'is_internal' => false,
+                'is_system' => false,
+                'is_pinned' => false,
                 'body' => $body,
             ]);
 
@@ -232,6 +234,7 @@ class TicketService
 
         $query = TicketMessage::query()
             ->public()
+            ->human()
             ->join($tickets, $tickets.'.id', '=', $messages.'.ticket_id')
             ->where($tickets.'.requester_type', $type)
             ->where($tickets.'.requester_id', $requesterId)
@@ -263,6 +266,7 @@ class TicketService
 
         $query = TicketMessage::query()
             ->public()
+            ->human()
             ->join($tickets, $tickets.'.id', '=', $messages.'.ticket_id')
             ->whereColumn($messages.'.author_type', $tickets.'.requester_type')
             ->whereColumn($messages.'.author_id', $tickets.'.requester_id')

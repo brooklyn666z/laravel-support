@@ -134,7 +134,10 @@ class RecordTicketHistory
             $event->actor,
             TicketEventType::MessagePosted,
             newValue: (string) $event->message->id,
-            meta: ['is_internal' => $event->message->is_internal],
+            meta: [
+                'is_internal' => $event->message->is_internal,
+                'is_system' => $event->message->is_system,
+            ],
         );
     }
 
